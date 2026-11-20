@@ -1,12 +1,12 @@
 package com.example.loantracker.ui.screens.customer
 
-import android.content.pm.PackageManager
+import android.content.Intent
 import android.os.Build
+import android.provider.ContactsContract
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -17,23 +17,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.ContactPhone
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -48,7 +41,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -59,27 +51,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
-import com.example.loantracker.functions.getContact
 import com.example.loantracker.ui.components.DateInputField
 import com.example.loantracker.viewmodel.CustomerViewModel
 import com.example.loantracker.viewmodel.ValViewModel
+import com.example.loantracker.viewmodel.auth.AuthViewModel
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
-import java.util.jar.Manifest
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
@@ -88,7 +72,7 @@ import kotlinx.coroutines.launch
  *
  * This screen handles:
  * - Fetching customer data if editing (based on [id]).
- * - Picking a contact from the device's contacts list.
+ * - Picking a phone number from the device's contacts list.
  * - Input validation for name, age, gender, and date.
  * - Saving the customer to the database via the [viewModel].
  *
@@ -105,47 +89,43 @@ fun FormCustomerAddEdit(
     viewModel: CustomerViewModel,
     paddingValues: PaddingValues,
     navController: NavHostController,
-    v: ValViewModel
+    v: ValViewModel,
+    authViewModel: AuthViewModel
 ){
     val tracing by viewModel.getCustomerById(id = id.toLong()).collectAsState(initial = null)
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
-    var contactDraft by remember(id) {
-        mutableStateOf<List<CustomerViewModel.NewContact>?>(null)
-    }
     val villages by viewModel.villages.collectAsState(initial = emptyList())
     val clusters by viewModel.clusters.collectAsState(initial = emptyList())
+    var phoneNumber by rememberSaveable { mutableStateOf("") }
 
     val contactPicker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickContact()
-    ) { uri ->
-        if (uri != null) {
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val uri = result.data?.data
+        if (result.resultCode == android.app.Activity.RESULT_OK && uri != null) {
             try {
-                val phone = getContact(context, uri)?.phoneNumber
+                val phone = context.contentResolver.query(
+                    uri,
+                    arrayOf(ContactsContract.CommonDataKinds.Phone.NUMBER),
+                    null,
+                    null,
+                    null
+                )?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        cursor.getString(cursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.NUMBER))
+                    } else null
+                }
                 if (!phone.isNullOrBlank()) {
-                    contactDraft = contactDraft.orEmpty() +
-                        CustomerViewModel.NewContact("Phone", phone)
+                    phoneNumber = phone
                 } else {
                     Toast.makeText(context, "The selected contact has no phone number.", Toast.LENGTH_SHORT).show()
                 }
             } catch (error: SecurityException) {
-                Toast.makeText(
-                    context,
-                    "Allow contacts access to import a phone number.",
-                    Toast.LENGTH_LONG
-                ).show()
+                Toast.makeText(context, "Unable to read the selected phone number.", Toast.LENGTH_LONG).show()
             } catch (error: IllegalArgumentException) {
-                Toast.makeText(context, "Unable to read the selected contact.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Unable to read the selected phone number.", Toast.LENGTH_SHORT).show()
             }
-        }
-    }
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        if (granted) {
-            contactPicker.launch(null)
-        } else {
-            Toast.makeText(context, "Contacts permission is required to import a phone number.", Toast.LENGTH_LONG).show()
         }
     }
 
@@ -158,8 +138,6 @@ fun FormCustomerAddEdit(
     var clusterName by rememberSaveable { mutableStateOf("") }
     var enteringVillage by rememberSaveable { mutableStateOf(false) }
     var enteringCluster by rememberSaveable { mutableStateOf(false) }
-    var phoneNumber by rememberSaveable { mutableStateOf("") }
-    var showDialog by rememberSaveable { mutableStateOf(false) }
     var isSaving by rememberSaveable { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
     val villageFocusRequester = remember { FocusRequester() }
@@ -176,6 +154,7 @@ fun FormCustomerAddEdit(
             date = it.dateCreated.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
             name = it.name
             age = it.age.toString()
+            phoneNumber = it.phoneNumber.orEmpty()
             villageId = it.villageId
             clusterId = it.clusterId
         }
@@ -315,46 +294,28 @@ fun FormCustomerAddEdit(
             }
             Spacer(modifier = Modifier.height(12.dp))
 
-            contactDraft.orEmpty().forEachIndexed { index, contact ->
-                ContactCard(
-                    contact = contact,
-                    onDelete = {
-                        contactDraft = contactDraft.orEmpty().toMutableList().also { it.removeAt(index) }
-                    },
-                    imageVector = if (contact.type == "Phone"){
-                        Icons.Default.Phone
-                    } else {
-                        Icons.Default.Email
-                    }
-                )
-
-                Spacer(modifier = Modifier.height(11.dp))
-            }
-
-            Row(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(
-                onClick = {
-                    showDialog = true
-                }
-            ){
-                Text("Add Contact")
-            }
-            OutlinedButton(
-                onClick = {
-                    if (ContextCompat.checkSelfPermission(
-                            context,
-                            android.Manifest.permission.READ_CONTACTS
-                        ) == PackageManager.PERMISSION_GRANTED
-                    ) {
-                        contactPicker.launch(null)
-                    } else {
-                        permissionLauncher.launch(android.Manifest.permission.READ_CONTACTS)
+            OutlinedTextField(
+                value = phoneNumber,
+                onValueChange = { phoneNumber = it },
+                label = { Text("Phone number (optional)") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Phone,
+                    imeAction = ImeAction.Next
+                ),
+                trailingIcon = {
+                    IconButton(onClick = {
+                        authViewModel.onExternalActivityLaunch()
+                        contactPicker.launch(
+                            Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI)
+                        )
+                    }) {
+                        Icon(Icons.Default.ContactPhone, contentDescription = "Choose phone number from contacts")
                     }
                 }
-            ) {
-                Text("Import Contact")
-            }
-            }
+            )
+            Spacer(modifier = Modifier.height(12.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth()
@@ -365,7 +326,7 @@ fun FormCustomerAddEdit(
                         val trimmedDate = date.trim()
                         val trimmedName = name.trim()
                         val trimmedAge = age.trim()
-                        val trimmedPhoneNumber = phoneNumber.trim()
+                        val trimmedPhoneNumber = normalizePhoneNumber(phoneNumber)
 
                         // Validation
                         if (trimmedDate.isEmpty() || trimmedName.isEmpty()) {
@@ -387,7 +348,7 @@ fun FormCustomerAddEdit(
                         }
 
                         //validate phoneNumber if set. should be a valid phone number
-                        if (trimmedPhoneNumber.isNotEmpty() && !trimmedPhoneNumber.matches(Regex("^\\+?[0-9]{10,15}\$"))) {
+                        if (trimmedPhoneNumber.isNotEmpty() && !trimmedPhoneNumber.matches(Regex("^\\+[1-9][0-9]{9,14}\$"))) {
                             Toast.makeText(context, "Please enter a valid phone number", Toast.LENGTH_SHORT).show()
                             return@Button
                         }
@@ -525,15 +486,6 @@ private fun LocationDropdown(
 
 private data class LocationOption(val id: Long, val name: String)
 
-/**
- * A custom wrapper around [OutlinedTextField] to provide a consistent style and behavior.
- *
- * @param value The input text to be shown in the text field.
- * @param onValueChange The callback that is triggered when the input text changes.
- * @param label The label to be displayed inside the text field.
- * @param keyboardType The type of keyboard to be shown (e.g., Text, Number).
- * @param imeAction The IME action to be performed (e.g., Next, Done).
- */
 @Composable
 fun CustomTextField(
     value: String,
@@ -542,8 +494,6 @@ fun CustomTextField(
     keyboardType: KeyboardType = KeyboardType.Text,
     imeAction: ImeAction = ImeAction.Next
 ){
-    val focusManager = LocalFocusManager.current
-
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
@@ -557,65 +507,40 @@ fun CustomTextField(
     )
 }
 
-@Composable
-fun ContactCard(
-    contact: CustomerViewModel.NewContact,
-    onDelete: ()-> Unit,
-    imageVector: ImageVector
-){
-    val lightBlue = Color(0xFFE3F2FD)
-    val darkBlue = Color(0xFF1565C0)
+private fun formatPhoneInput(input: String): String {
+    val digits = input.filter(Char::isDigit).take(15)
+    if (digits.isEmpty()) return ""
+    val international = input.trimStart().startsWith("+") || digits.startsWith("265") && digits.length > 10
+    val national = digits.startsWith("0")
+    val prefix = when {
+        international && digits.startsWith("265") -> "+265 "
+        international -> "+"
+        else -> ""
+    }
+    val body = if (international && digits.startsWith("265")) digits.drop(3) else digits
+    val groups = when {
+        national -> listOf(4, 3, 3)
+        international && digits.startsWith("265") -> listOf(3, 3, 3, 3)
+        else -> listOf(3, 3, 3, 3, 3)
+    }
+    var remaining = body
+    val formatted = mutableListOf<String>()
+    for (size in groups) {
+        if (remaining.isEmpty()) break
+        formatted += remaining.take(size)
+        remaining = remaining.drop(size)
+    }
+    if (remaining.isNotEmpty()) formatted += remaining
+    return prefix + formatted.joinToString(" ")
+}
 
-    ElevatedCard(
-        modifier = Modifier
-            .fillMaxWidth(),
-        colors = CardDefaults.elevatedCardColors(contentColor = lightBlue),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp),
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .padding(12.dp)
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .background(darkBlue.copy(alpha = 0.1f), RoundedCornerShape(8.dp))
-                    .padding(8.dp)
-            ) {
-                Icon(
-                    imageVector = imageVector,
-                    contentDescription = null,
-                    modifier = Modifier.size(28.dp),
-                    tint = darkBlue
-                )
-            }
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = contact.type,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.Black
-                )
-
-                Text(
-                    text = contact.value,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color.DarkGray
-                )
-            }
-
-            IconButton(onClick = onDelete) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "Delete",
-                    tint = Color(0xFFD32F2F)
-                )
-            }
-        }
+private fun normalizePhoneNumber(input: String): String {
+    val trimmed = input.trim()
+    val digits = trimmed.filter(Char::isDigit)
+    return when {
+        digits.length == 10 && digits.startsWith("0") -> "+265${digits.drop(1)}"
+        digits.length == 12 && digits.startsWith("265") -> "+$digits"
+        trimmed.startsWith("+") -> "+$digits"
+        else -> digits
     }
 }

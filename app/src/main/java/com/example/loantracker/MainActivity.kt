@@ -63,6 +63,7 @@ import com.example.loantracker.ui.components.AppLockObserver
 import com.example.loantracker.ui.screens.auth.LockScreen
 import com.example.loantracker.ui.theme.LoanTrackerTheme
 import com.example.loantracker.viewmodel.CustomerViewModel
+import com.example.loantracker.viewmodel.LoanDetailAction
 import com.example.loantracker.viewmodel.ValViewModel
 import com.example.loantracker.viewmodel.auth.AuthViewModel
 import dagger.hilt.android.AndroidEntryPoint
@@ -110,6 +111,7 @@ class MainActivity : FragmentActivity() {
                 val scope = rememberCoroutineScope()
                 var isSearching by remember { mutableStateOf(false) }
                 var showMenu by remember { mutableStateOf(false) }
+                var showLoanMenu by remember { mutableStateOf(false) }
                 var showDatePicker by remember { mutableStateOf(false) }
                 val searchQuery by customerViewModel.searchQuery.collectAsState()
                 val focusRequester = remember { FocusRequester() }
@@ -266,6 +268,38 @@ class MainActivity : FragmentActivity() {
                                                     )
                                                 }
                                             }
+                                        } else if (currentRoute == ProjectNavScreen.Overview.route) {
+                                            IconButton(onClick = { showLoanMenu = true }) {
+                                                Icon(Icons.Default.MoreVert, contentDescription = "Loan actions")
+                                            }
+                                            DropdownMenu(
+                                                expanded = showLoanMenu,
+                                                onDismissRequest = { showLoanMenu = false }
+                                            ) {
+                                                listOf(
+                                                    "Edit loan" to LoanDetailAction.EDIT,
+                                                    "Delete loan" to LoanDetailAction.DELETE,
+                                                    "Add payment" to LoanDetailAction.ADD_PAYMENT,
+                                                    "Payment history" to null,
+                                                    "Add notes" to LoanDetailAction.ADD_NOTE
+                                                ).forEach { (label, action) ->
+                                                    DropdownMenuItem(
+                                                        text = { Text(label) },
+                                                        onClick = {
+                                                            showLoanMenu = false
+                                                            if (action == null) {
+                                                                navController.navigate(
+                                                                    ProjectNavScreen.Payments.goToPayments(
+                                                                        valViewModel.activeProjectId
+                                                                    )
+                                                                )
+                                                            } else {
+                                                                valViewModel.requestLoanDetailAction(action)
+                                                            }
+                                                        }
+                                                    )
+                                                }
+                                            }
                                         }
                                     }
                                 )
@@ -278,6 +312,7 @@ class MainActivity : FragmentActivity() {
                             paddingValues = paddingValues,
                             customerViewModel = customerViewModel,
                             valViewModel = valViewModel,
+                            authViewModel = authViewModel,
                             currency = currency,
                             onCurrencyChange = { value ->
                                 if (value.isNotBlank()) scope.launch { userPreferences.setCurrency(value.trim()) }

@@ -110,7 +110,8 @@ fun MainNavGraph(
                     viewModel = customerViewModel,
                     paddingValues = paddingValues,
                     navController = navController,
-                    v = valViewModel
+                    v = valViewModel,
+                    authViewModel = authViewModel
                 )
             }
 
@@ -148,6 +149,7 @@ fun MainNavGraph(
                     projectViewModel = projectViewModel,
                     customerViewModel = customerViewModel,
                     currency = currency,
+                    valViewModel = valViewModel,
                     onPaymentsClick = {
                         navController.navigate(ProjectNavScreen.Payments.goToPayments(projectId.toLong()))
                     },

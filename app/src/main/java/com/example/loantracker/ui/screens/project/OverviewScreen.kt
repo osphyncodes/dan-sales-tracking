@@ -25,11 +25,8 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Event
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.AlertDialog
@@ -43,6 +40,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -62,6 +60,8 @@ import com.example.loantracker.data.local.entities.NoteEntity
 import com.example.loantracker.ui.screens.customer.CustomerAttemptDialog
 import com.example.loantracker.viewmodel.CustomerViewModel
 import com.example.loantracker.viewmodel.ProjectViewModel
+import com.example.loantracker.viewmodel.LoanDetailAction
+import com.example.loantracker.viewmodel.ValViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import java.time.format.DateTimeFormatter
@@ -76,6 +76,7 @@ fun ProjectOverviewScreen(
     projectViewModel: ProjectViewModel,
     customerViewModel: CustomerViewModel,
     currency: String,
+    valViewModel: ValViewModel,
     onPaymentsClick: () -> Unit = {},
     onProjectDeleted: (Long) -> Unit = {}
 ) {
@@ -109,6 +110,20 @@ fun ProjectOverviewScreen(
     val lightGreen = Color(0xFFE8F5EF)
 
     project?.let { currentProject ->
+        LaunchedEffect(valViewModel.pendingLoanDetailAction, projectId) {
+            when (valViewModel.pendingLoanDetailAction) {
+                LoanDetailAction.EDIT -> showEditProject = true
+                LoanDetailAction.DELETE -> showDeleteProject = true
+                LoanDetailAction.ADD_PAYMENT -> showAddPayment = true
+                LoanDetailAction.ADD_NOTE -> {
+                    noteBeingEdited = null
+                    noteText = ""
+                    showNoteEditor = true
+                }
+                null -> return@LaunchedEffect
+            }
+            valViewModel.consumeLoanDetailAction()
+        }
         val customer by customerViewModel.getCustomerById(currentProject.customerId)
             .collectAsState(initial = null)
         val customerName = customer?.name ?: "Customer"
@@ -139,9 +154,6 @@ fun ProjectOverviewScreen(
                     customerName = customerName,
                     projectGreen = projectGreen,
                     lightGreen = lightGreen,
-                    onEdit = { showEditProject = true },
-                    onDelete = { showDeleteProject = true },
-                    onAddPayment = { showAddPayment = true },
                     isOutstanding = balance > 0.0
                 )
             }
@@ -405,13 +417,8 @@ private fun ProjectHeaderCard(
     customerName: String,
     projectGreen: Color,
     lightGreen: Color,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit,
-    onAddPayment: () -> Unit,
     isOutstanding: Boolean,
 ) {
-    var menuExpanded by remember { mutableStateOf(false) }
-
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
@@ -483,27 +490,6 @@ private fun ProjectHeaderCard(
                 }
 
                 Column(horizontalAlignment = Alignment.End) {
-                    IconButton(onClick = { menuExpanded = true }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "Loan actions")
-                    }
-                    DropdownMenu(
-                        expanded = menuExpanded,
-                        onDismissRequest = { menuExpanded = false }
-                    ) {
-                        listOf(
-                            "Edit" to onEdit,
-                            "Delete" to onDelete,
-                            "Add Payment" to onAddPayment
-                        ).forEach { (label, action) ->
-                            DropdownMenuItem(
-                                text = { Text(label) },
-                                onClick = {
-                                    menuExpanded = false
-                                    action()
-                                }
-                            )
-                        }
-                    }
                     StatusBadge(
                         color = projectGreen,
                         backgroundColor = lightGreen,

@@ -68,7 +68,7 @@ fun CustomerAttemptDialog(
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Clothing/item description *") },
+                    label = { Text("Clothing/item description (optional)") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
@@ -78,7 +78,7 @@ fun CustomerAttemptDialog(
                         amount = value.filter { it.isDigit() || it == '.' || it == ',' }
                     },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    label = { Text("Amount given (optional)") },
+                    label = { Text("Amount given *") },
                     prefix = { Text("$currency ") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
@@ -96,15 +96,15 @@ fun CustomerAttemptDialog(
             Button(
                 enabled = !isSaving,
                 onClick = {
-                    if (name.isBlank() || dateCreated.isBlank()) {
-                        Toast.makeText(context, "Loan name and date are required.", Toast.LENGTH_SHORT).show()
+                    if (dateCreated.isBlank() || amount.isBlank()) {
+                        Toast.makeText(context, "Amount given and date are required.", Toast.LENGTH_SHORT).show()
                         return@Button
                     }
                     val parsedAmount = amount.replace(",", ".").toDoubleOrNull()
-                    if (parsedAmount == null && amount.isNotBlank() ||
-                        parsedAmount != null && (!parsedAmount.isFinite() || parsedAmount < 0.0)
+                    if (parsedAmount == null ||
+                        !parsedAmount.isFinite() || parsedAmount <= 0.0
                     ) {
-                        Toast.makeText(context, "Enter a valid non-negative amount.", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Enter a valid amount greater than zero.", Toast.LENGTH_SHORT).show()
                         return@Button
                     }
 
@@ -125,9 +125,9 @@ fun CustomerAttemptDialog(
                                 viewModel.saveProject(
                                     existingProject = project,
                                     customerId = customerId,
-                                    name = name.trim(),
+                                    name = name.trim().ifEmpty { "Loan" },
                                     dateCreated = created.atStartOfDay(),
-                                    price = parsedAmount ?: 0.0,
+                                    price = parsedAmount,
                                     dueDate = due?.atStartOfDay()
                                 )
                                 onSave(true)

@@ -1,10 +1,13 @@
 package com.example.loantracker.ui.screens.customer
 
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.net.Uri
 import android.os.Build
+import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,20 +23,17 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.BusinessCenter
 import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.House
 import androidx.compose.material.icons.filled.Phone
-import androidx.compose.material.icons.filled.PhoneInTalk
 import androidx.compose.material.icons.filled.Work
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CardDefaults
@@ -42,6 +42,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -56,14 +57,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import com.example.loantracker.data.local.entities.CustomerEntity
 import com.example.loantracker.data.local.entities.ProjectEntity
+import com.example.loantracker.functions.formatMoney
 import com.example.loantracker.navigation.ProjectNavScreen
 import com.example.loantracker.viewmodel.CustomerViewModel
 import com.example.loantracker.viewmodel.ProjectViewModel
@@ -85,6 +87,7 @@ fun DetailScreen(
     val projects by projectViewModel
         .getProjectsByCustomerId(customerId)
         .collectAsState(initial = emptyList())
+    val payments by projectViewModel.getAllPayments().collectAsState(initial = emptyList())
 
     val customer by customerViewModel
         .getCustomerById(customerId)
@@ -201,6 +204,10 @@ fun DetailScreen(
                         ProjectCard(
 
                             project = project,
+                            amountPaid = payments.asSequence()
+                                .filter { it.projectId == project.id }
+                                .sumOf { it.amountPaid },
+                            currency = currency,
 
                             onOpen = {
                                 navController.navigate(
@@ -472,7 +479,7 @@ fun CustomerDetailsSection(
                     )
 
                     ContactSection(
-                        contacts = listOf(phone)
+                        phoneNumber = phone
                     )
                 }
             }
@@ -530,9 +537,8 @@ private fun CustomerAvatar(
 // =============================================================================
 
 @Composable
-private fun ContactSection(
-    contacts: List<String>
-) {
+private fun ContactSection(phoneNumber: String) {
+    val context = LocalContext.current
 
     Column(
         verticalArrangement =
@@ -547,52 +553,45 @@ private fun ContactSection(
                 FontWeight.Bold
         )
 
-        contacts.forEach { contact ->
-
-            ContactRow(
-                icon = Icons.Default.Phone,
-                value = contact
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.Phone, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            Spacer(Modifier.width(10.dp))
+            Text(
+                text = phoneNumber,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            IconButton(onClick = {
+                val number = phoneNumber.toMalawiInternationalNumber()
+                try {
+                    context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:+$number")))
+                } catch (_: ActivityNotFoundException) {
+                    Toast.makeText(context, "No phone app is available.", Toast.LENGTH_SHORT).show()
+                }
+            }) {
+                Icon(Icons.Default.Call, contentDescription = "Call customer")
+            }
+            IconButton(onClick = {
+                val number = phoneNumber.toMalawiInternationalNumber()
+                try {
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/$number")))
+                } catch (_: ActivityNotFoundException) {
+                    Toast.makeText(context, "No app can open WhatsApp links.", Toast.LENGTH_SHORT).show()
+                }
+            }) {
+                Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = "Message customer on WhatsApp")
+            }
         }
-
     }
 }
 
-// =============================================================================
-// CONTACT ROW
-// =============================================================================
-
-@Composable
-private fun ContactRow(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    value: String
-) {
-
-    Row(
-        verticalAlignment =
-            Alignment.CenterVertically
-    ) {
-
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            modifier = Modifier.size(18.dp),
-            tint = MaterialTheme.colorScheme.primary
-        )
-
-        Spacer(
-            modifier = Modifier.width(10.dp)
-        )
-
-        Text(
-            text = value,
-
-            style =
-                MaterialTheme.typography.bodyMedium,
-
-            color =
-                MaterialTheme.colorScheme.onSurfaceVariant
-        )
+private fun String.toMalawiInternationalNumber(): String {
+    val digits = filter(Char::isDigit)
+    return when {
+        digits.startsWith("0") -> "265${digits.drop(1)}"
+        digits.startsWith("265") -> digits
+        else -> digits
     }
 }
 
@@ -647,6 +646,8 @@ fun DetailItem(
 @Composable
 fun ProjectCard(
     project: ProjectEntity,
+    amountPaid: Double,
+    currency: String,
     onOpen: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit
@@ -656,6 +657,10 @@ fun ProjectCard(
         DateTimeFormatter.ofPattern(
             "dd MMM yyyy"
         )
+    val loanAmount = project.price.coerceAtLeast(0.0)
+    val paidAmount = amountPaid.coerceIn(0.0, loanAmount)
+    val remaining = if (project.isBalanceForgiven) 0.0 else (loanAmount - paidAmount).coerceAtLeast(0.0)
+    val progress = if (loanAmount > 0.0) (paidAmount / loanAmount).toFloat() else 0f
 
     ElevatedCard(
 
@@ -821,6 +826,33 @@ fun ProjectCard(
                     tint =
                         MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
+
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("Given ${formatMoney(loanAmount, currency)}", style = MaterialTheme.typography.bodySmall)
+                    Text("Paid ${formatMoney(paidAmount, currency)}", style = MaterialTheme.typography.bodySmall)
+                }
+                LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth())
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        if (project.isBalanceForgiven) "Settled" else "Remaining ${formatMoney(remaining, currency)}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = if (remaining > 0.0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                    )
+                    project.dueDate?.let {
+                        Text("Due ${it.format(formatter)}", style = MaterialTheme.typography.labelSmall)
+                    }
+                }
             }
 
             // =================================================================

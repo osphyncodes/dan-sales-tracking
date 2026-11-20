@@ -10,6 +10,13 @@ import com.example.loantracker.data.local.entities.ProjectEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
+enum class LoanDetailAction {
+    EDIT,
+    DELETE,
+    ADD_PAYMENT,
+    ADD_NOTE
+}
+
 @HiltViewModel
 class ValViewModel @Inject constructor(): ViewModel() {
 
@@ -36,5 +43,16 @@ class ValViewModel @Inject constructor(): ViewModel() {
 
     fun setTracing(name: String){
         this._name = name
+    }
+
+    var pendingLoanDetailAction by mutableStateOf<LoanDetailAction?>(null)
+        private set
+
+    fun requestLoanDetailAction(action: LoanDetailAction) {
+        pendingLoanDetailAction = action
+    }
+
+    fun consumeLoanDetailAction() {
+        pendingLoanDetailAction = null
     }
 }
