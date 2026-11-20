@@ -1,0 +1,5 @@
+# Copy this file to signing.properties. Do not commit signing.properties or the keystore.
+storeFile=../keystores/tailors-counterpart-release.jks
+storePassword=replace-with-keystore-password
+keyAlias=tailors-counterpart
+keyPassword=replace-with-key-password

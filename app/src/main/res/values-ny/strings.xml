@@ -1,0 +1,15 @@
+<resources>
+    <string name="app_name">TailorDesk</string>
+
+    <string name="home">Home</string>
+    <string name="customers">Makasitomala</string>
+    <string name="settings">Zokonda</string>
+
+    <!--    customer screen-->
+    <string name="add_customers">Onjezerani Kasitomala</string>
+    <string name="edit_customer">Sinthani Kasitomala</string>
+    <string name="msg_customer_delete">Mwatsimikiza mukufunadi kuchotsa Kasitomalayu?</string>
+
+    <string name="save">Sungani</string>
+    <string name="cancel">Lekani</string>
+</resources>

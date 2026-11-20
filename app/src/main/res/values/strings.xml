@@ -1,0 +1,15 @@
+<resources>
+    <string name="app_name">TailorDesk</string>
+
+    <string name="home">Home</string>
+    <string name="customers">Customers</string>
+    <string name="settings">Settings</string>
+
+    <!--    customer screen-->
+    <string name="add_customers">Add Customer</string>
+    <string name="edit_customer">Edit Customer</string>
+    <string name="msg_customer_delete">Are you sure you want to delete this customer?</string>
+    
+    <string name="save">Save</string>
+    <string name="cancel">Cancel</string>
+</resources>
