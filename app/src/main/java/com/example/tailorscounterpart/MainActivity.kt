@@ -78,7 +78,7 @@ import com.example.tailorscounterpart.navigation.MainNavScreen
 import com.example.tailorscounterpart.navigation.ProjectNavScreen
 import com.example.tailorscounterpart.ui.components.AppLockObserver
 import com.example.tailorscounterpart.ui.screens.auth.LockScreen
-import com.example.tailorscounterpart.ui.theme.TailorsCounterpartTheme
+import com.example.tailorscounterpart.ui.theme.LoanTrackerTheme
 import com.example.tailorscounterpart.viewmodel.CustomerViewModel
 import com.example.tailorscounterpart.viewmodel.ValViewModel
 import com.example.tailorscounterpart.viewmodel.auth.AuthViewModel
@@ -86,6 +86,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
+import com.example.loantracker.R
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDateTime
@@ -113,7 +114,7 @@ class MainActivity : FragmentActivity() {
         enableEdgeToEdge()
 
         setContent {
-            TailorsCounterpartTheme {
+            LoanTrackerTheme {
                 val navController = rememberNavController()
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentRoute = navBackStackEntry?.destination?.route
@@ -207,7 +208,9 @@ class MainActivity : FragmentActivity() {
                                                         tint = Color.White
                                                     )
                                                 },
-                                                label = { Text(stringResource(R.string.home), color = Color.White) }
+                                                label = {
+                                                    Text(stringResource(R.string.home), color = Color.White)
+                                                }
                                             )
                                             NavigationBarItem(
                                                 selected = currentRoute == MainNavScreen.Customer.route,

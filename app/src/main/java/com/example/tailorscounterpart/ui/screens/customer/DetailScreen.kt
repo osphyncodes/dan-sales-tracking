@@ -62,13 +62,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
-import com.example.tailorscounterpart.data.local.entities.ContactEntity
 import com.example.tailorscounterpart.data.local.entities.CustomerEntity
 import com.example.tailorscounterpart.data.local.entities.ProjectEntity
 import com.example.tailorscounterpart.navigation.ProjectNavScreen
 import com.example.tailorscounterpart.viewmodel.CustomerViewModel
 import com.example.tailorscounterpart.viewmodel.ProjectViewModel
 import com.example.tailorscounterpart.viewmodel.ValViewModel
+import com.google.android.gms.common.util.CollectionUtils.listOf
 import java.time.format.DateTimeFormatter
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -85,10 +85,6 @@ fun DetailScreen(
 
     val projects by projectViewModel
         .getProjectsByCustomerId(customerId)
-        .collectAsState(initial = emptyList())
-
-    val contacts by customerViewModel
-        .getContactsByCustomerId(customerId.toString())
         .collectAsState(initial = emptyList())
 
     val customer by customerViewModel
@@ -137,8 +133,7 @@ fun DetailScreen(
 
             customer?.let {
                 CustomerDetailsSection(
-                    customer = it,
-                    contacts = contacts
+                    customer = it
                 )
             }
 
@@ -362,7 +357,6 @@ fun DetailScreen(
 @Composable
 fun CustomerDetailsSection(
     customer: CustomerEntity,
-    contacts: List<ContactEntity>
 ) {
 
     ElevatedCard(
@@ -446,8 +440,8 @@ fun CustomerDetailsSection(
             // -----------------------------------------------------------------
 
             DetailItem(
-                label = "Gender",
-                value = customer.gender
+                label = "Village",
+                value = "Sili"
             )
 
             DetailItem(
@@ -464,20 +458,24 @@ fun CustomerDetailsSection(
                 )
             )
 
+
             // -----------------------------------------------------------------
             // CONTACTS
             // -----------------------------------------------------------------
 
-            if (contacts.isNotEmpty()) {
+            customer.phoneNumber.let { phone ->
+                if (phone !== "") {
 
-                Spacer(
-                    modifier = Modifier.height(14.dp)
-                )
+                    Spacer(
+                        modifier = Modifier.height(14.dp)
+                    )
 
-                ContactSection(
-                    contacts = contacts
-                )
+                    ContactSection(
+                        contacts = listOf<String>(phone)
+                    )
+                }
             }
+
         }
     }
 }
@@ -532,24 +530,8 @@ private fun CustomerAvatar(
 
 @Composable
 private fun ContactSection(
-    contacts: List<ContactEntity>
+    contacts: List<String>
 ) {
-
-    val phones = contacts
-        .filter {
-            it.type.equals(
-                "Phone",
-                ignoreCase = true
-            )
-        }
-
-    val emails = contacts
-        .filter {
-            it.type.equals(
-                "Email",
-                ignoreCase = true
-            )
-        }
 
     Column(
         verticalArrangement =
@@ -564,21 +546,14 @@ private fun ContactSection(
                 FontWeight.Bold
         )
 
-        phones.forEach { contact ->
+        contacts.forEach { contact ->
 
             ContactRow(
                 icon = Icons.Default.Phone,
-                value = contact.value
+                value = contact
             )
         }
 
-        emails.forEach { contact ->
-
-            ContactRow(
-                icon = Icons.Default.Email,
-                value = contact.value
-            )
-        }
     }
 }
 

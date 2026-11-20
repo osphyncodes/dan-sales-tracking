@@ -5,8 +5,8 @@ import android.content.Context
 import androidx.room.Room
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
-import com.example.tailorscounterpart.data.local.daos.ContactDao
 import com.example.tailorscounterpart.data.local.daos.ProjectDao
+import com.example.tailorscounterpart.data.local.daos.VillageDao
 import com.example.tailorscounterpart.data.local.database.AppDatabase
 import dagger.Module
 import dagger.Provides
@@ -77,10 +77,10 @@ object DatabaseModule {
     fun provideDao(db: AppDatabase) = db.customerDao()
 
     @Provides
-    fun provideContactDao(
+    fun provideVillageDao(
         database: AppDatabase
-    ): ContactDao {
-        return database.contactDao()
+    ): VillageDao {
+        return database.villageDao()
     }
 
     @Provides
@@ -94,11 +94,9 @@ object DatabaseModule {
     fun provideNoteDao(db: AppDatabase) = db.noteDao()
 
     @Provides
-    fun provideMeasurementDao(db: AppDatabase) = db.measurementDao()
+    fun provideClusterDao(db: AppDatabase) = db.clusterDao()
 
     @Provides
     fun providePaymentDao(db: AppDatabase) = db.paymentDao()
 
-    @Provides
-    fun provideProjectMeasurementDao(db: AppDatabase) = db.projectMeasurementDao()
 }

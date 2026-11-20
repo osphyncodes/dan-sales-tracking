@@ -1,6 +1,5 @@
 package com.example.tailorscounterpart.ui.screens.project
 
-import android.annotation.SuppressLint
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -12,16 +11,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.CheckCircle
@@ -33,26 +29,20 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Straighten
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -67,21 +57,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavController
-import androidx.navigation.NavHostController
 import com.example.tailorscounterpart.functions.formatMoney
-import com.example.tailorscounterpart.functions.getTopAppBarColors
 import com.example.tailorscounterpart.data.local.entities.NoteEntity
-import com.example.tailorscounterpart.data.local.entities.ProjectMeasurementEntity
-import com.example.tailorscounterpart.data.local.entities.ProjectEntity
 import com.example.tailorscounterpart.data.local.entities.normalizedProjectStatus
 import com.example.tailorscounterpart.ui.screens.customer.CustomerAttemptDialog
-import com.example.tailorscounterpart.viewmodel.MeasurementViewModel
 import com.example.tailorscounterpart.viewmodel.CustomerViewModel
 import com.example.tailorscounterpart.viewmodel.ProjectViewModel
 import kotlinx.coroutines.CancellationException
@@ -98,7 +78,6 @@ fun ProjectOverviewScreen(
     projectViewModel: ProjectViewModel,
     customerViewModel: CustomerViewModel,
     currency: String,
-    measurementViewModel: MeasurementViewModel,
     onPaymentsClick: () -> Unit = {},
     onMeasurementsClick: () -> Unit = {},
     onProjectDeleted: (Long) -> Unit = {}
@@ -141,10 +120,6 @@ fun ProjectOverviewScreen(
         val customerName = customer?.name ?: "Customer"
         val notes by projectViewModel.getNotesByProjectId(projectId)
             .collectAsState(initial = emptyList())
-        val availableMeasurements by measurementViewModel.measurements.collectAsState(initial = emptyList())
-        val projectMeasurements by projectViewModel
-            .getProjectMeasurementsByProjectId(projectId)
-            .collectAsState(initial = emptyList())
         val balance = (currentProject.price - amountPaid).coerceAtLeast(0.0)
         LazyColumn(
             modifier = Modifier
@@ -167,15 +142,10 @@ fun ProjectOverviewScreen(
                 ProjectHeaderCard(
                     projectName = currentProject.name,
                     customerName = customerName,
-                    status = currentProject.status.normalizedProjectStatus(),
                     projectGreen = projectGreen,
                     lightGreen = lightGreen,
                     onEdit = { showEditProject = true },
                     onDelete = { showDeleteProject = true },
-                    onUpdateStatus = {
-                        selectedStatus = currentProject.status.normalizedProjectStatus()
-                        showStatusDialog = true
-                    },
                     onAddPayment = { showAddPayment = true },
                     onAddMeasurement = { showAddMeasurement = true }
                 )
@@ -219,11 +189,10 @@ fun ProjectOverviewScreen(
                         .format(
                             DateTimeFormatter.ofPattern("MMMM dd, yyyy")
                         ),
-                    dueDate = currentProject.dueDate.format(
+                    dueDate = currentProject.dueDate?.format(
                         DateTimeFormatter.ofPattern(
                         "MMMM dd, yyyy"
-                    )),
-                    status = currentProject.status.normalizedProjectStatus(),
+                    )) ?: "Not set",
                     projectGreen = projectGreen
                 )
             }
@@ -374,52 +343,6 @@ fun ProjectOverviewScreen(
             )
         }
 
-        if (showStatusDialog) {
-            AlertDialog(
-                onDismissRequest = { showStatusDialog = false },
-                title = { Text("Update project status") },
-                text = {
-                    Column {
-                        listOf("In Progress", "Cancelled", "Completed").forEach { status ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { selectedStatus = status },
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                RadioButton(
-                                    selected = selectedStatus == status,
-                                    onClick = { selectedStatus = status }
-                                )
-                                Text(status)
-                            }
-                        }
-                    }
-                },
-                confirmButton = {
-                    TextButton(onClick = {
-                        scope.launch {
-                            try {
-                                projectViewModel.updateProjectNow(currentProject.copy(status = selectedStatus))
-                                showStatusDialog = false
-                            } catch (error: CancellationException) {
-                                throw error
-                            } catch (error: Exception) {
-                                android.widget.Toast.makeText(
-                                    context,
-                                    error.message ?: "Unable to update project status.",
-                                    android.widget.Toast.LENGTH_LONG
-                                ).show()
-                            }
-                        }
-                    }) { Text("Save") }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showStatusDialog = false }) { Text("Cancel") }
-                }
-            )
-        }
-
         if (showAddPayment) {
             PaymentDialog(
                 title = "Add payment",
@@ -459,41 +382,6 @@ fun ProjectOverviewScreen(
             )
         }
 
-        if (showAddMeasurement) {
-            ProjectMeasurementDialog(
-                title = "Add measurement",
-                availableMeasurements = availableMeasurements,
-                existingProjectMeasurements = projectMeasurements,
-                initialMeasurementId = null,
-                initialValue = "",
-                confirmText = "Add measurement",
-                onDismiss = { showAddMeasurement = false },
-                onCreateMeasurement = { name -> measurementViewModel.insertMeasurement(name.trim()) },
-                onConfirm = { measurementId, value ->
-                    scope.launch {
-                        try {
-                            projectViewModel.insertProjectMeasurementNow(
-                                ProjectMeasurementEntity(
-                                    projectId = projectId,
-                                    measurementId = measurementId,
-                                    value = value
-                                )
-                            )
-                            showAddMeasurement = false
-                        } catch (error: CancellationException) {
-                            throw error
-                        } catch (error: Exception) {
-                            android.widget.Toast.makeText(
-                                context,
-                                error.message ?: "Unable to add measurement.",
-                                android.widget.Toast.LENGTH_LONG
-                            ).show()
-                        }
-                    }
-                }
-            )
-        }
-
         noteBeingDeleted?.let { note ->
                 AlertDialog(
                     onDismissRequest = { noteBeingDeleted = null },
@@ -523,12 +411,10 @@ fun ProjectOverviewScreen(
 private fun ProjectHeaderCard(
     projectName: String,
     customerName: String,
-    status: String,
     projectGreen: Color,
     lightGreen: Color,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
-    onUpdateStatus: () -> Unit,
     onAddPayment: () -> Unit,
     onAddMeasurement: () -> Unit
 ) {
@@ -615,7 +501,6 @@ private fun ProjectHeaderCard(
                         listOf(
                             "Edit" to onEdit,
                             "Delete" to onDelete,
-                            "Update status" to onUpdateStatus,
                             "Add Payment" to onAddPayment,
                             "Add measurement" to onAddMeasurement
                         ).forEach { (label, action) ->
@@ -629,7 +514,6 @@ private fun ProjectHeaderCard(
                         }
                     }
                     StatusBadge(
-                        status = status,
                         color = projectGreen,
                         backgroundColor = lightGreen
                     )
@@ -826,8 +710,7 @@ private fun FinancialItem(
 private fun ProjectInformationCard(
     customerName: String,
     dateCreated: String,
-    dueDate: String,
-    status: String,
+    dueDate: String?,
     projectGreen: Color
 ) {
 
@@ -867,7 +750,7 @@ private fun ProjectInformationCard(
             InformationRow(
                 icon = Icons.Default.Event,
                 title = "Due date",
-                value = dueDate,
+                value = dueDate ?: "Not set",
                 iconColor = MaterialTheme.colorScheme.error
             )
 
@@ -876,7 +759,7 @@ private fun ProjectInformationCard(
             InformationRow(
                 icon = Icons.Default.CheckCircle,
                 title = "Status",
-                value = status,
+                value = "Active",
                 iconColor = projectGreen
             )
         }
@@ -1059,7 +942,6 @@ private fun QuickActionRow(
 
 @Composable
 private fun StatusBadge(
-    status: String,
     color: Color,
     backgroundColor: Color
 ) {
@@ -1087,7 +969,7 @@ private fun StatusBadge(
             Spacer(modifier = Modifier.width(6.dp))
 
             Text(
-                text = status,
+                text = "Active",
                 style = MaterialTheme.typography.labelMedium,
                 color = color,
                 fontWeight = FontWeight.SemiBold

@@ -14,11 +14,11 @@ val signingProperties = Properties().apply {
 }
 
 android {
-    namespace = "com.example.tailorscounterpart"
+    namespace = "com.example.loantracker"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.example.tailorscounterpart"
+        applicationId = "com.example.loantracker"
         minSdk = 24
         targetSdk = 34
         versionCode = 1

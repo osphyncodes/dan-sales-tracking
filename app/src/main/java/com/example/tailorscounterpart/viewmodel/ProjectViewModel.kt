@@ -6,10 +6,8 @@ import com.example.tailorscounterpart.data.local.data_classes.ProjectMeasurement
 import com.example.tailorscounterpart.data.local.entities.NoteEntity
 import com.example.tailorscounterpart.data.local.entities.PaymentEntity
 import com.example.tailorscounterpart.data.local.entities.ProjectEntity
-import com.example.tailorscounterpart.data.local.entities.ProjectMeasurementEntity
 import com.example.tailorscounterpart.data.local.repository.NoteRepository
 import com.example.tailorscounterpart.data.local.repository.PaymentRepository
-import com.example.tailorscounterpart.data.local.repository.ProjectMeasurementRepository
 import com.example.tailorscounterpart.data.local.repository.ProjectRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.Flow
@@ -22,7 +20,6 @@ class ProjectViewModel @Inject constructor(
     private val projectRepository: ProjectRepository,
     private val paymentRepository: PaymentRepository,
     private val noteRepository: NoteRepository,
-    private val pmRepository: ProjectMeasurementRepository
 ): ViewModel() {
     //Project CRUD Operations ====================================================
     fun insertProject(
@@ -30,7 +27,6 @@ class ProjectViewModel @Inject constructor(
         name: String,
         dateCreated: LocalDateTime,
         dueDate: LocalDateTime,
-        status: String,
         price: Double
     ){
         viewModelScope.launch {
@@ -40,7 +36,6 @@ class ProjectViewModel @Inject constructor(
                     name = name,
                     dateCreated = dateCreated,
                     dueDate = dueDate,
-                    status = status,
                     price = price,
                 )
             )
@@ -162,39 +157,4 @@ class ProjectViewModel @Inject constructor(
         return noteRepository.getByProjectId(projectId)
     }
 
-    //Project Management Crud ====================================================
-    fun insertProjectMeasurement(
-        pm: ProjectMeasurementEntity
-    ){
-        viewModelScope.launch {
-            pmRepository.insert(
-                pm
-            )
-        }
-    }
-
-    suspend fun insertProjectMeasurementNow(pm: ProjectMeasurementEntity) {
-        pmRepository.insert(pm)
-    }
-
-    fun updateProjectMeasurement(pm: ProjectMeasurementEntity){
-        viewModelScope.launch {
-            pmRepository.update(pm)
-        }
-    }
-
-    fun deleteProjectMeasurement(pm: ProjectMeasurementEntity){
-        viewModelScope.launch {
-            pmRepository.delete(pm)
-        }
-    }
-
-    fun getProjectMeasurementsByProjectId(
-        projectId: Long?
-    ): Flow<List<ProjectMeasurement>>{
-        return pmRepository.getProjectMeasurementById(projectId)
-    }
-
-    //Measurements CRUD
-    
 }

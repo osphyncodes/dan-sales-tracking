@@ -49,7 +49,7 @@ fun DashboardScreen(
         else -> null
     }
     val summary = calculateFinancialSummary(projects, payments, startDate, today, paymentMethod)
-    val projectsInProgress = projects.count { it.status.isProjectInProgress() }
+//    val projectsInProgress = projects.count { it.status.isProjectInProgress() }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(paddingValues).padding(horizontal = 16.dp),
@@ -111,9 +111,9 @@ fun DashboardScreen(
                 )
             }
         }
-        item {
-            MetricCard("Projects in progress", projectsInProgress.toString())
-        }
+//        item {
+//            MetricCard("Projects in progress", projectsInProgress.toString())
+//        }
         item {
             Text("Latest payments", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
         }

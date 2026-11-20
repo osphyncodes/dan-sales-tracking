@@ -43,6 +43,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -99,19 +100,13 @@ fun FormCustomerAddEdit(
     v: ValViewModel
 ){
     val tracing by viewModel.getCustomerById(id = id.toLong()).collectAsState(initial = null)
-    val savedContacts by viewModel.getContactsByCustomerId(id).collectAsState(initial = null)
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     var contactDraft by remember(id) {
         mutableStateOf<List<CustomerViewModel.NewContact>?>(null)
     }
-
-    LaunchedEffect(savedContacts) {
-        if (contactDraft == null && savedContacts != null) {
-            contactDraft = savedContacts.orEmpty()
-                .map { CustomerViewModel.NewContact(it.type, it.value) }
-        }
-    }
+    val villages by viewModel.villages.collectAsState(initial = emptyList())
+    val clusters by viewModel.clusters.collectAsState(initial = emptyList())
 
     val contactPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickContact()
@@ -148,8 +143,10 @@ fun FormCustomerAddEdit(
 
     var date by rememberSaveable { mutableStateOf("") }
     var name by rememberSaveable { mutableStateOf("") }
-    var gender by rememberSaveable { mutableStateOf("") }
     var age by rememberSaveable { mutableStateOf("") }
+    var villageId by rememberSaveable { mutableLongStateOf(0L) }
+    var clusterId by rememberSaveable { mutableLongStateOf(0L) }
+    var phoneNumber by rememberSaveable { mutableStateOf("") }
     var showDialog by rememberSaveable { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
 
@@ -163,7 +160,6 @@ fun FormCustomerAddEdit(
             }
             date = it.dateCreated.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
             name = it.name
-            gender = it.gender
             age = it.age.toString()
         }
     }
@@ -207,28 +203,6 @@ fun FormCustomerAddEdit(
                 imeAction = ImeAction.Next
             )
             Spacer(modifier = Modifier.height(12.dp))
-
-            SelectDropdown(
-                label = "Gender",
-                options = listOf("Male", "FNP", "FP"),
-                selectedOption = gender,
-                onOptionSelected = { gender = it },
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-
-            if (showDialog) {
-                ContactDialog(
-                    onSave = { type, value ->
-                        contactDraft = contactDraft.orEmpty() +
-                                CustomerViewModel.NewContact(type, value)
-                        showDialog = false
-                    },
-                    onDismis = {
-                        showDialog = false
-                    }
-                )
-            }
 
             contactDraft.orEmpty().forEachIndexed { index, contact ->
                 ContactCard(
@@ -279,14 +253,27 @@ fun FormCustomerAddEdit(
                         val trimmedDate = date.trim()
                         val trimmedName = name.trim()
                         val trimmedAge = age.trim()
-                        val trimmedGender = gender.trim()
+                        val trimmedPhoneNumber = phoneNumber.trim()
 
                         // Validation
                         if (trimmedDate.isEmpty()  || trimmedName.isEmpty() ||
-                            trimmedAge.isEmpty() || trimmedGender.isEmpty()) {
+                            trimmedAge.isEmpty()) {
                             Toast.makeText(context, "All fields are required", Toast.LENGTH_SHORT).show()
                             return@Button
                         }
+
+                        //validate villageId and clusterId
+                        if (villageId <= 0 || clusterId <= 0) {
+                            Toast.makeText(context, "Please select a valid village and cluster", Toast.LENGTH_SHORT).show()
+                            return@Button
+                        }
+
+                        //validate phoneNumber if set. should be a valid phone number
+                        if (trimmedPhoneNumber.isNotEmpty() && !trimmedPhoneNumber.matches(Regex("^\\+?[0-9]{10,15}\$"))) {
+                            Toast.makeText(context, "Please enter a valid phone number", Toast.LENGTH_SHORT).show()
+                            return@Button
+                        }
+
 
                         val ageInt = trimmedAge.toIntOrNull()
                         if (ageInt == null || ageInt !in 0..99) {
@@ -302,21 +289,24 @@ fun FormCustomerAddEdit(
                             }
 
                             if (id == "0" || tracing == null) {
-                                viewModel.insertCustomerWithContacts(
+                                viewModel.insertCustomer(
                                     dateCreated = LocalDateTime.of(selectedLocalDate, LocalTime.MIDNIGHT),
                                     name = trimmedName,
                                     age = trimmedAge,
-                                    gender = trimmedGender,
-                                    contacts = contactDraft.orEmpty()
+                                    villageId = 0L, // Replace with actual villageId
+                                    clusterId = 0L, // Replace with actual clusterId
+                                    phoneNumber = trimmedPhoneNumber,
                                 )
                             } else {
                                 tracing?.let {
-                                    viewModel.updateCustomerWithContacts(it.copy(
+                                    viewModel.updateCustomer(it.copy(
                                         dateCreated = LocalDateTime.of(selectedLocalDate, LocalTime.MIDNIGHT),
                                         name = trimmedName,
                                         age = trimmedAge,
-                                        gender = trimmedGender,
-                                    ), contactDraft.orEmpty())
+                                        villageId = 0L, // Replace with actual villageId
+                                        clusterId = 0L, // Replace with actual clusterId
+                                        phoneNumber = trimmedPhoneNumber,
+                                    ))
                                 }
                             }
                             navController.popBackStack()

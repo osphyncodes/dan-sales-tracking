@@ -48,15 +48,6 @@ fun CustomerAttemptDialog(
     var dueDate by remember { mutableStateOf(project?.dueDate?.format(
         DateTimeFormatter.ofPattern("yyyy-MM-dd")
     ) ?: "") }
-    var status by remember {
-        mutableStateOf(
-            when {
-                project?.status.equals("Complete", true) || project?.status.equals("Completed", true) -> "Completed"
-                project?.status.equals("Cancelled", true) -> "Cancelled"
-                else -> "In Progress"
-            }
-        )
-    }
     var saved by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
@@ -110,16 +101,6 @@ fun CustomerAttemptDialog(
                     prefix = {
                         Text(text = currency)
                     }
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                SelectDropdown(
-                    label = "Project status",
-                    options = listOf("In Progress", "Cancelled", "Completed"),
-                    selectedOption = status,
-                    onOptionSelected = { status = it },
-                    modifier = Modifier.fillMaxWidth()
                 )
 
                 Spacer(modifier = Modifier.height(10.dp))
@@ -181,7 +162,6 @@ fun CustomerAttemptDialog(
                                 dateCreated = LocalDateTime.of(selectedLocalDate, LocalTime.MIDNIGHT),
                                 name = name.trim(),
                                 customerId = customerId,
-                                status = status,
                                 price = parsedPrice,
                                 dueDate = LocalDateTime.of(selectedDueDate, LocalTime.MIDNIGHT)
                             )
@@ -191,7 +171,6 @@ fun CustomerAttemptDialog(
                                     dateCreated = LocalDateTime.of(selectedLocalDate, LocalTime.MIDNIGHT),
                                     name = name.trim(),
                                     customerId = customerId,
-                                    status = status,
                                     price = parsedPrice,
                                     dueDate = LocalDateTime.of(selectedDueDate, LocalTime.MIDNIGHT)
                                 ))

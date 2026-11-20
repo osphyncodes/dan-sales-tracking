@@ -31,7 +31,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.tailorscounterpart.R
+import com.example.loantracker.R
 import com.example.tailorscounterpart.ui.components.Keypad
 import com.example.tailorscounterpart.viewmodel.auth.AuthViewModel
 import kotlinx.coroutines.launch

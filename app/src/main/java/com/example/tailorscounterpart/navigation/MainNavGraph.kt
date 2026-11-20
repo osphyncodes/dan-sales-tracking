@@ -12,24 +12,18 @@ import androidx.navigation.navArgument
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.navigation
 import com.example.tailorscounterpart.data.local.database.AppDatabase
-import com.example.tailorscounterpart.data.local.repository.ContactRepository
-import com.example.tailorscounterpart.data.local.repository.CustomerRepository
-import com.example.tailorscounterpart.data.local.repository.MeasurementRepository
+import com.example.tailorscounterpart.data.local.repository.VillageRepository
 import com.example.tailorscounterpart.data.local.repository.NoteRepository
 import com.example.tailorscounterpart.data.local.repository.PaymentRepository
-import com.example.tailorscounterpart.data.local.repository.ProjectMeasurementRepository
 import com.example.tailorscounterpart.data.local.repository.ProjectRepository
 import com.example.tailorscounterpart.ui.screens.HomeScreen
 import com.example.tailorscounterpart.ui.screens.DashboardScreen
 import com.example.tailorscounterpart.ui.screens.customer.DetailScreen
 import com.example.tailorscounterpart.ui.screens.customer.FormCustomerAddEdit
 import com.example.tailorscounterpart.ui.screens.settings.SettingsScreen
-import com.example.tailorscounterpart.ui.screens.project.MeasurementScreen
-import com.example.tailorscounterpart.ui.screens.project.ProjectMeasurementsScreen
 import com.example.tailorscounterpart.ui.screens.project.ProjectOverviewScreen
 import com.example.tailorscounterpart.ui.screens.project.ProjectPaymentsScreen
 import com.example.tailorscounterpart.viewmodel.CustomerViewModel
-import com.example.tailorscounterpart.viewmodel.MeasurementViewModel
 import com.example.tailorscounterpart.viewmodel.ProjectViewModel
 import com.example.tailorscounterpart.viewmodel.ValViewModel
 import com.example.tailorscounterpart.viewmodel.auth.AuthViewModel
@@ -56,19 +50,12 @@ fun MainNavGraph(
         val projectRepository = ProjectRepository(dao = database.projectDao())
         val paymentRepository = PaymentRepository(dao = database.paymentDao())
         val noteRepository = NoteRepository(dao = database.noteDao())
-        val pmRepository = ProjectMeasurementRepository(dao = database.projectMeasurementDao())
 
 
         val projectViewModel = ProjectViewModel(
             projectRepository = projectRepository,
             noteRepository = noteRepository,
             paymentRepository = paymentRepository,
-            pmRepository = pmRepository
-        )
-
-        val measurementRepository = MeasurementRepository(dao = database.measurementDao())
-        val measurementViewModel = MeasurementViewModel(
-            repository = measurementRepository
         )
 
         navigation(
@@ -161,7 +148,6 @@ fun MainNavGraph(
                     projectViewModel = projectViewModel,
                     customerViewModel = customerViewModel,
                     currency = currency,
-                    measurementViewModel = measurementViewModel,
                     onPaymentsClick = {
                         navController.navigate(ProjectNavScreen.Payments.goToPayments(projectId.toLong()))
                     },
@@ -174,14 +160,6 @@ fun MainNavGraph(
                             inclusive = false
                         )
                     }
-                )
-            }
-            composable(route = ProjectNavScreen.Measurement.route) {
-                ProjectMeasurementsScreen(
-                    paddingValues = paddingValues,
-                    valViewModel = valViewModel,
-                    projectViewModel = projectViewModel,
-                    measurementViewModel = measurementViewModel
                 )
             }
             composable(route = ProjectNavScreen.Payments.route){

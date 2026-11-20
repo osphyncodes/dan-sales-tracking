@@ -4,8 +4,8 @@ import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "measurements")
-data class MeasurementEntity(
+@Entity(tableName = "clusters")
+data class ClusterEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,
     val name: String,

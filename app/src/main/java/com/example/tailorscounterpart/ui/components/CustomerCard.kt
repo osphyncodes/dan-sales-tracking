@@ -32,7 +32,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
-import com.example.tailorscounterpart.data.local.entities.ContactEntity
 import com.example.tailorscounterpart.data.local.entities.CustomerWithProjects
 import com.example.tailorscounterpart.data.local.entities.isProjectCompleted
 import com.example.tailorscounterpart.navigation.MainNavScreen
@@ -56,14 +55,10 @@ fun CustomerCard(
     val projects = customerWithProjects.projects
     val v: ValViewModel = viewModel()
 
-    val contacts by customerViewModel.getContactsByCustomerId(
-        customer.id.toString()
-    ).collectAsState(emptyList())
-
     val status = when {
         projects.isEmpty() -> "No Projects"
-        projects.all { it.status.isProjectCompleted() } -> "Finished"
-        else -> "Unfinished"
+        projects.all { it.balance == 0.0 } -> "Cleared"
+        else -> "With Balance"
     }
 
     Card(
@@ -135,7 +130,7 @@ fun CustomerCard(
                 if(customer.id == v.clickedCard) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = "Sex: ${customer.gender} | Age: ${customer.age}",
+                            text = "Sex: ${"Kadewere"} | Age: ${customer.age}",
                         )
                     }
                     Spacer(modifier = Modifier.height(10.dp))
