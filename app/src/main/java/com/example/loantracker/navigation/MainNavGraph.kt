@@ -132,7 +132,8 @@ fun MainNavGraph(
                     v = valViewModel,
                     customerId = id.toLong(),
                     navController = navController,
-                    currency = currency
+                    currency = currency,
+                    authViewModel = authViewModel
                 )
             }
         }

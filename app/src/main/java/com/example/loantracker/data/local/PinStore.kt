@@ -9,12 +9,14 @@ import kotlinx.coroutines.flow.first
 import java.security.MessageDigest
 import java.util.Objects.hash
 import javax.inject.Inject
+import javax.inject.Singleton
 
+private val Context.securePreferencesDataStore by preferencesDataStore("secure_prefs")
+
+@Singleton
 class PinStore @Inject constructor(
     @param:ApplicationContext private val context: Context
 ) {
-    private val Context.dataStore by preferencesDataStore("secure_prefs")
-
     private val PIN_KEY = stringPreferencesKey("pin_hash")
     private val QUESTION1_KEY = stringPreferencesKey("q1")
     private val ANSWER1_KEY = stringPreferencesKey("a1")
@@ -22,13 +24,13 @@ class PinStore @Inject constructor(
     private val ANSWER2_KEY = stringPreferencesKey("a2")
 
     suspend fun savePin(pin: String){
-        context.dataStore.edit {
+        context.securePreferencesDataStore.edit {
             it[PIN_KEY] = hash(pin)
         }
     }
 
     suspend fun saveRecovery(q1: String, a1: String, q2: String, a2: String) {
-        context.dataStore.edit {
+        context.securePreferencesDataStore.edit {
             it[QUESTION1_KEY] = q1
             it[ANSWER1_KEY] = hash(a1.lowercase().trim())
             it[QUESTION2_KEY] = q2
@@ -37,7 +39,7 @@ class PinStore @Inject constructor(
     }
 
     suspend fun getRecoveryData(): Map<String, String?> {
-        val prefs = context.dataStore.data.first()
+        val prefs = context.securePreferencesDataStore.data.first()
         return mapOf(
             "q1" to prefs[QUESTION1_KEY],
             "a1" to prefs[ANSWER1_KEY],
@@ -47,7 +49,7 @@ class PinStore @Inject constructor(
     }
 
     suspend fun getPin(): String?{
-        return context.dataStore.data.first()[PIN_KEY]
+        return context.securePreferencesDataStore.data.first()[PIN_KEY]
     }
 
     fun verify(pin: String, savedHash: String?): Boolean {

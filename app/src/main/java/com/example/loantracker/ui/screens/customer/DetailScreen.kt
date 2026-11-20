@@ -70,6 +70,7 @@ import com.example.loantracker.navigation.ProjectNavScreen
 import com.example.loantracker.viewmodel.CustomerViewModel
 import com.example.loantracker.viewmodel.ProjectViewModel
 import com.example.loantracker.viewmodel.ValViewModel
+import com.example.loantracker.viewmodel.auth.AuthViewModel
 import java.time.format.DateTimeFormatter
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -81,6 +82,7 @@ fun DetailScreen(
     v: ValViewModel,
     navController: NavHostController,
     currency: String,
+    authViewModel: AuthViewModel,
     customerId: Long = 1L
 ) {
 
@@ -135,7 +137,8 @@ fun DetailScreen(
                 CustomerDetailsSection(
                     customer = it,
                     village = villages.firstOrNull { village -> village.id.toLong() == it.villageId }?.name,
-                    cluster = clusters.firstOrNull { cluster -> cluster.id.toLong() == it.clusterId }?.name
+                    cluster = clusters.firstOrNull { cluster -> cluster.id.toLong() == it.clusterId }?.name,
+                    authViewModel = authViewModel
                 )
             }
 
@@ -362,7 +365,8 @@ fun DetailScreen(
 fun CustomerDetailsSection(
     customer: CustomerEntity,
     village: String?,
-    cluster: String?
+    cluster: String?,
+    authViewModel: AuthViewModel
 ) {
 
     ElevatedCard(
@@ -479,7 +483,8 @@ fun CustomerDetailsSection(
                     )
 
                     ContactSection(
-                        phoneNumber = phone
+                        phoneNumber = phone,
+                        authViewModel = authViewModel
                     )
                 }
             }
@@ -537,7 +542,7 @@ private fun CustomerAvatar(
 // =============================================================================
 
 @Composable
-private fun ContactSection(phoneNumber: String) {
+private fun ContactSection(phoneNumber: String, authViewModel: AuthViewModel) {
     val context = LocalContext.current
 
     Column(
@@ -565,9 +570,14 @@ private fun ContactSection(phoneNumber: String) {
             IconButton(onClick = {
                 val number = phoneNumber.toMalawiInternationalNumber()
                 try {
+                    authViewModel.onExternalActivityLaunch()
                     context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:+$number")))
                 } catch (_: ActivityNotFoundException) {
+                    authViewModel.cancelExternalActivityLaunch()
                     Toast.makeText(context, "No phone app is available.", Toast.LENGTH_SHORT).show()
+                } catch (_: SecurityException) {
+                    authViewModel.cancelExternalActivityLaunch()
+                    Toast.makeText(context, "Unable to open the phone app.", Toast.LENGTH_SHORT).show()
                 }
             }) {
                 Icon(Icons.Default.Call, contentDescription = "Call customer")
@@ -575,9 +585,14 @@ private fun ContactSection(phoneNumber: String) {
             IconButton(onClick = {
                 val number = phoneNumber.toMalawiInternationalNumber()
                 try {
+                    authViewModel.onExternalActivityLaunch()
                     context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/$number")))
                 } catch (_: ActivityNotFoundException) {
+                    authViewModel.cancelExternalActivityLaunch()
                     Toast.makeText(context, "No app can open WhatsApp links.", Toast.LENGTH_SHORT).show()
+                } catch (_: SecurityException) {
+                    authViewModel.cancelExternalActivityLaunch()
+                    Toast.makeText(context, "Unable to open the WhatsApp link.", Toast.LENGTH_SHORT).show()
                 }
             }) {
                 Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = "Message customer on WhatsApp")

@@ -1,8 +1,11 @@
 package com.example.loantracker.ui.screens.customer
 
+import android.app.Activity
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.os.Build
 import android.provider.ContactsContract
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -100,31 +103,51 @@ fun FormCustomerAddEdit(
     var phoneNumber by rememberSaveable { mutableStateOf("") }
 
     val contactPicker = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
+        contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
-        val uri = result.data?.data
-        if (result.resultCode == android.app.Activity.RESULT_OK && uri != null) {
-            try {
-                val phone = context.contentResolver.query(
-                    uri,
-                    arrayOf(ContactsContract.CommonDataKinds.Phone.NUMBER),
-                    null,
-                    null,
-                    null
-                )?.use { cursor ->
-                    if (cursor.moveToFirst()) {
-                        cursor.getString(cursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.NUMBER))
-                    } else null
+
+        if (result.resultCode == Activity.RESULT_OK) {
+
+            val uri = result.data?.data
+
+            if (uri != null) {
+                try {
+                    val phone = context.contentResolver.query(
+                        uri,
+                        arrayOf(ContactsContract.CommonDataKinds.Phone.NUMBER),
+                        null,
+                        null,
+                        null
+                    )?.use { cursor ->
+
+                        val numberIndex = cursor.getColumnIndex(
+                            ContactsContract.CommonDataKinds.Phone.NUMBER
+                        )
+
+                        if (cursor.moveToFirst() && numberIndex >= 0) {
+                            cursor.getString(numberIndex)
+                        } else null
+                    }
+
+                    if (!phone.isNullOrBlank()) {
+                        phoneNumber = formatPhoneInput(phone)
+                    } else {
+                        Toast.makeText(
+                            context,
+                            "The selected contact has no phone number.",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+
+                } catch (error: Exception) {
+                    Log.e("ContactPicker", "Error reading contact", error)
+
+                    Toast.makeText(
+                        context,
+                        "Unable to read the selected phone number.",
+                        Toast.LENGTH_LONG
+                    ).show()
                 }
-                if (!phone.isNullOrBlank()) {
-                    phoneNumber = phone
-                } else {
-                    Toast.makeText(context, "The selected contact has no phone number.", Toast.LENGTH_SHORT).show()
-                }
-            } catch (error: SecurityException) {
-                Toast.makeText(context, "Unable to read the selected phone number.", Toast.LENGTH_LONG).show()
-            } catch (error: IllegalArgumentException) {
-                Toast.makeText(context, "Unable to read the selected phone number.", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -306,10 +329,18 @@ fun FormCustomerAddEdit(
                 ),
                 trailingIcon = {
                     IconButton(onClick = {
-                        authViewModel.onExternalActivityLaunch()
-                        contactPicker.launch(
-                            Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI)
-                        )
+                        try {
+                            authViewModel.onExternalActivityLaunch()
+                            contactPicker.launch(
+                                Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI)
+                            )
+                        } catch (_: ActivityNotFoundException) {
+                            authViewModel.cancelExternalActivityLaunch()
+                            Toast.makeText(context, "No contacts app is available.", Toast.LENGTH_SHORT).show()
+                        } catch (_: SecurityException) {
+                            authViewModel.cancelExternalActivityLaunch()
+                            Toast.makeText(context, "Unable to open the contacts app.", Toast.LENGTH_SHORT).show()
+                        }
                     }) {
                         Icon(Icons.Default.ContactPhone, contentDescription = "Choose phone number from contacts")
                     }

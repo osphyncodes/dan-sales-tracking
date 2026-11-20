@@ -172,6 +172,10 @@ class AuthViewModel @Inject constructor(
         savedStateHandle[HANDOFF_DEADLINE_KEY] = now + EXTERNAL_ACTIVITY_GRACE_MS
     }
 
+    fun cancelExternalActivityLaunch() {
+        clearExternalActivityHandoff()
+    }
+
     fun onResumeCheck() {
         val now = System.currentTimeMillis()
         val handoffDeadline = savedStateHandle.get<Long>(HANDOFF_DEADLINE_KEY) ?: 0L
