@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.AttachMoney
@@ -99,7 +100,8 @@ fun ProjectPaymentsScreen(
     modifier: Modifier = Modifier,
     projectViewModel: ProjectViewModel,
     valViewModel: ValViewModel,
-    currency: String
+    currency: String,
+    onBack: () -> Unit
 ) {
         val projectId = valViewModel.activeProjectId
         val payments by projectViewModel
@@ -132,7 +134,8 @@ fun ProjectPaymentsScreen(
         val totalPaid = remember(payments.toList()) {
             payments.sumOf { it.amountPaid }
         }
-        val projectBalance = ((project?.price ?: 0.0) - totalPaid).coerceAtLeast(0.0)
+        val projectBalance = if (project?.isBalanceForgiven == true) 0.0
+        else ((project?.price ?: 0.0) - totalPaid).coerceAtLeast(0.0)
 
         Scaffold(
 
@@ -143,6 +146,11 @@ fun ProjectPaymentsScreen(
             topBar = {
 
                 TopAppBar(
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back to loan")
+                        }
+                    },
                     title = {
 
                         project?.let {project ->
@@ -154,7 +162,7 @@ fun ProjectPaymentsScreen(
                                 )
 
                                 Text(
-                                    text = "Project Price - ${formatMoney(project.price, currency)}",
+                                    text = "Loan amount · ${formatMoney(project.price, currency)}",
                                     fontWeight = FontWeight.Bold,
                                     style = MaterialTheme.typography.labelSmall
                                 )
@@ -323,7 +331,7 @@ fun ProjectPaymentsScreen(
                         isSaving = true
                         try {
                             val selectedProject = project
-                                ?: error("Project details are still loading. Try again.")
+                                ?: error("Loan details are still loading. Try again.")
                             projectViewModel.insertPayment(
                                 projectId = selectedProject.id,
                                 datePaid = date.atStartOfDay(),
@@ -364,8 +372,8 @@ fun ProjectPaymentsScreen(
 
                 currency = currency,
                 projectAmount = project?.price ?: 0.0,
-                availableBalance = ((project?.price ?: 0.0) - totalPaid + payment.amountPaid)
-                    .coerceAtLeast(0.0),
+                availableBalance = if (project?.isBalanceForgiven == true) 0.0
+                else ((project?.price ?: 0.0) - totalPaid + payment.amountPaid).coerceAtLeast(0.0),
 
                 confirmText = "Save changes",
                 isSaving = isSaving,
@@ -676,7 +684,7 @@ private fun PaymentItem(
                         )
 
                         Text(
-                            text = method,
+                            text = if (method.equals("Item Exchange", ignoreCase = true)) "Other" else method,
 
                             style =
                                 MaterialTheme.typography.labelMedium,
@@ -746,7 +754,7 @@ private fun PaymentMethodIcon(
         ) -> Icons.Default.AccountBalance
 
         method.equals(
-            "Item Exchange",
+            "Other",
             ignoreCase = true
         ) -> Icons.Default.ReceiptLong
 
@@ -809,11 +817,20 @@ internal fun PaymentDialog(
     ) {
         mutableStateOf(initialAmount)
     }
+    var markingFullyPaid by rememberSaveable(
+        initialAmount,
+        availableBalance
+    ) {
+        mutableStateOf(false)
+    }
 
     var selectedMethod by rememberSaveable(
         initialMethod
     ) {
-        mutableStateOf(initialMethod)
+        mutableStateOf(
+            if (initialMethod.equals("Item Exchange", ignoreCase = true)) "Other"
+            else initialMethod
+        )
     }
 
     var selectedDate by rememberSaveable(
@@ -830,10 +847,11 @@ internal fun PaymentDialog(
         mutableStateOf(false)
     }
 
-    val parsedAmount =
-        amountText
-            .replace(",", ".")
-            .toDoubleOrNull()
+    val parsedAmount = if (markingFullyPaid) {
+        availableBalance
+    } else {
+        amountText.replace(",", ".").toDoubleOrNull()
+    }
 
     val date =
         runCatching {
@@ -854,7 +872,7 @@ internal fun PaymentDialog(
         "Mpamba",
         "Airtel Money",
         "Bank",
-        "Item Exchange"
+        "Other"
     )
 
     AlertDialog(
@@ -882,7 +900,7 @@ internal fun PaymentDialog(
                         modifier = Modifier.padding(14.dp),
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        Text("Project amount: ${formatMoney(projectAmount, currency)}")
+                        Text("Loan amount: ${formatMoney(projectAmount, currency)}")
                         Text(
                             "Available balance: ${formatMoney(availableBalance, currency)}",
                             fontWeight = FontWeight.SemiBold
@@ -901,11 +919,29 @@ internal fun PaymentDialog(
                 // AMOUNT
                 // =============================================================
 
-                OutlinedTextField(
+                if (availableBalance > 0.0) {
+                    FilledTonalButton(
+                        onClick = { markingFullyPaid = !markingFullyPaid },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            if (markingFullyPaid) "Enter a partial amount"
+                            else "Fully paid · ${formatMoney(availableBalance, currency)}"
+                        )
+                    }
+                }
+
+                if (markingFullyPaid) {
+                    Text(
+                        "This payment will clear the full remaining balance of ${formatMoney(availableBalance, currency)}.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                } else OutlinedTextField(
 
                     value = amountText,
 
                     onValueChange = {
+                        markingFullyPaid = false
                         amountText = it.filter { character ->
                             character.isDigit() || character == '.' || character == ','
                         }
@@ -1236,7 +1272,7 @@ private fun EmptyPaymentsState(
                 )
 
                 Text(
-                    text = "Record the customer's first payment for this project.",
+                    text = "Record a payment toward this customer's loan.",
                     style =
                         MaterialTheme.typography.bodyMedium,
                     color =

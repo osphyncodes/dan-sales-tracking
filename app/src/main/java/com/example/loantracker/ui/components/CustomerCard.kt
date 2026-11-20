@@ -11,33 +11,31 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavHostController
 import com.example.loantracker.data.local.entities.CustomerWithProjects
-import com.example.loantracker.data.local.entities.isProjectCompleted
-import com.example.loantracker.navigation.MainNavScreen
-import com.example.loantracker.viewmodel.CustomerViewModel
-import com.example.loantracker.viewmodel.ValViewModel
-import kotlinx.coroutines.flow.Flow
+import com.example.loantracker.functions.formatMoney
 import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -45,134 +43,90 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun CustomerCard(
     customerWithProjects: CustomerWithProjects,
-    customerViewModel: CustomerViewModel,
+    outstanding: Double,
+    collected: Double,
+    currency: String,
+    village: String?,
+    cluster: String?,
+    onClick: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
-    navController: NavHostController,
-    modifier: Modifier
-){
+    modifier: Modifier = Modifier
+) {
     val customer = customerWithProjects.customer
-    val projects = customerWithProjects.projects
-    val v: ValViewModel = viewModel()
-
-    val status = when {
-        projects.isEmpty() -> "No Projects"
-        projects.all { it.balance == 0.0 } -> "Cleared"
-        else -> "With Balance"
-    }
+    val totalLoaned = customerWithProjects.projects.sumOf { it.price }
+    val progress = if (totalLoaned > 0) ((totalLoaned - outstanding) / totalLoaned).coerceIn(0.0, 1.0).toFloat() else 0f
+    var expanded by remember(customer.id) { mutableStateOf(false) }
 
     Card(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = 5.dp)
             .combinedClickable(
-                onLongClick = {
-                    v.setClickedCard(customer.id)
-                },
-                onClick = {
-                    v.setTracing(customer.name)
-                    navController.navigate(MainNavScreen.CustomerDetail.goToCustomerDetail(customer.id))
-                }
-            )
-
-    ){
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(15.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                onClick = onClick,
+                onLongClick = { expanded = !expanded }
+            ),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Column(
-                modifier = Modifier.weight(3f)
-            )
-            {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.DateRange,
-                        contentDescription = null,
-//                        Modifier.size(14.dp)
-                    )
-
-                    Spacer(modifier = Modifier.width(12.dp))
-
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Person, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(customer.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     Text(
-                        text = customer.dateCreated.format(
-                            DateTimeFormatter.ofPattern("dd/MMM/yyyy")
-                        ),
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.secondary
-                    )
-                    Spacer(modifier = Modifier.weight(1f))
-
-                    Text(
-                        text = status,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (status == "No Projects") MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold
+                        "${customerWithProjects.projects.size} loan${if (customerWithProjects.projects.size == 1) "" else "s"} · Added ${customer.dateCreated.format(DateTimeFormatter.ofPattern("dd MMM yyyy"))}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                Row{
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = null
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        text = customer.name,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                if(customer.id == v.clickedCard) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = "Sex: ${"Kadewere"} | Age: ${customer.age}",
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    Row(verticalAlignment = Alignment.Top) {
-                        Text(text = "Locator:")
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            text = "customer.locator",
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-
-                }
-            }
-            Spacer(modifier = Modifier.width(12.dp))
-            Row(
-                modifier = Modifier.weight(1f)
-            ){
                 IconButton(onClick = onEdit) {
-                    Icon(
-                        imageVector = Icons.Default.Edit,
-                        contentDescription = null
-                    )
+                    Icon(Icons.Default.Edit, contentDescription = "Edit customer")
                 }
                 IconButton(onClick = onDelete) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = null
-                    )
+                    Icon(Icons.Default.Delete, contentDescription = "Delete customer", tint = MaterialTheme.colorScheme.error)
                 }
+            }
+
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Column {
+                    Text("Still owed", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(formatMoney(outstanding, currency), fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.error)
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text("Collected", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(formatMoney(collected, currency), fontWeight = FontWeight.SemiBold)
+                }
+            }
+            LinearProgressIndicator(
+                progress = { progress },
+                modifier = Modifier.fillMaxWidth()
+            )
+            Text(
+                "${(progress * 100).toInt()}% repaid",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            if (expanded) {
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    listOfNotNull(village, cluster).joinToString(" · ").ifBlank { "Location not set" },
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    listOfNotNull(
+                        customer.age?.takeIf(String::isNotBlank)?.let { "Age $it" },
+                        customer.phoneNumber?.takeIf(String::isNotBlank)
+                    ).joinToString(" · ").ifBlank { "No extra details" },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text("Tap to review unpaid loans", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
             }
         }
     }
 }
-
-//@Composable
-//@Preview(showSystemUi = true, showBackground = true)
-//fun TracingCardPreview(){
-//    TracingCard(
-//        onDelete = {},
-//        onEdit = {},
-//        modifier = Modifier.padding(29.dp)
-//    )
-//}

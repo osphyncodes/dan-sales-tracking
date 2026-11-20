@@ -24,21 +24,13 @@ class ValViewModel @Inject constructor(): ViewModel() {
     fun setActiveProject(project: ProjectEntity){
         this._activeProject = project
     }
-    private var _clickedCard by mutableStateOf<Long?>(null)
-    val clickedCard: Long? get() = _clickedCard
-    fun setClickedCard(id: Long) {
-        _clickedCard =
-            if (_clickedCard == id) null
-            else id
-    }
-
     private var _title by mutableStateOf("Home")
     val title: State<String> = derivedStateOf { _title }
     fun setTitle(title: String){
         this._title = title
     }
 
-    private  var _name by mutableStateOf("Josephy Ng'omba")
+    private var _name by mutableStateOf("Customer details")
     val name: String
         get() = _name
 

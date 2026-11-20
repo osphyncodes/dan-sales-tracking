@@ -149,7 +149,7 @@ fun FormCustomerAddEdit(
         }
     }
 
-    var date by rememberSaveable { mutableStateOf("") }
+    var date by rememberSaveable { mutableStateOf(LocalDate.now().toString()) }
     var name by rememberSaveable { mutableStateOf("") }
     var age by rememberSaveable { mutableStateOf("") }
     var villageId by rememberSaveable { mutableLongStateOf(0L) }
@@ -218,7 +218,7 @@ fun FormCustomerAddEdit(
                 .padding(16.dp),
         ){
             DateInputField(
-                label = "Date",
+                label = "Customer added *",
                 selectedDate = date,
                 onDateSelected = { date = it },
                 modifier = Modifier
@@ -231,7 +231,7 @@ fun FormCustomerAddEdit(
             CustomTextField(
                 value = name,
                 onValueChange = { name = it },
-                label = "Name",
+                label = "Name *",
                 imeAction = ImeAction.Next
             )
             Spacer(modifier = Modifier.height(12.dp))
@@ -239,7 +239,7 @@ fun FormCustomerAddEdit(
             CustomTextField(
                 value = age,
                 onValueChange = { age = it },
-                label = "Age",
+                label = "Age (optional)",
                 keyboardType = KeyboardType.Number,
                 imeAction = ImeAction.Next
             )
@@ -368,9 +368,8 @@ fun FormCustomerAddEdit(
                         val trimmedPhoneNumber = phoneNumber.trim()
 
                         // Validation
-                        if (trimmedDate.isEmpty()  || trimmedName.isEmpty() ||
-                            trimmedAge.isEmpty()) {
-                            Toast.makeText(context, "All fields are required", Toast.LENGTH_SHORT).show()
+                        if (trimmedDate.isEmpty() || trimmedName.isEmpty()) {
+                            Toast.makeText(context, "Date and customer name are required.", Toast.LENGTH_SHORT).show()
                             return@Button
                         }
 
@@ -394,8 +393,8 @@ fun FormCustomerAddEdit(
                         }
 
 
-                        val ageInt = trimmedAge.toIntOrNull()
-                        if (ageInt == null || ageInt !in 0..99) {
+                        val ageInt = trimmedAge.takeIf(String::isNotEmpty)?.toIntOrNull()
+                        if (trimmedAge.isNotEmpty() && (ageInt == null || ageInt !in 0..99)) {
                             Toast.makeText(context, "Age must be between 0 and 99", Toast.LENGTH_SHORT).show()
                             return@Button
                         }

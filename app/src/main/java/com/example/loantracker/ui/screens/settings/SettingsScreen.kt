@@ -268,7 +268,7 @@ fun SettingsScreen(
             }
             driveAccount?.let { account ->
                 Text(
-                    "Connected: ${account.email ?: "Google account"} • Backups are stored in Drive/TailorCounterpart/backup.",
+                    "Connected: ${account.email ?: "Google account"} • Backups are stored in Drive/LoanTracker/backup.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -435,7 +435,7 @@ fun SettingsScreen(
                 }
             }
             Text(
-                "The app stores backups in Drive/TailorCounterpart/backup. Only the most recent backup is offered for restore. Restoring replaces the current local database; restart the app afterward.",
+                "The app stores backups in Drive/LoanTracker/backup. The latest backup is offered for restore. Existing backups in the former TailorCounterpart folder remain available.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -450,7 +450,7 @@ fun SettingsScreen(
                 if (driveBackups.isEmpty()) {
                     Text(
                         if (isBusy) "Loading Drive backups..." else
-                            "No backup found in Google Drive/TailorCounterpart/backup."
+                            "No backup found in Google Drive/LoanTracker/backup or its former TailorCounterpart folder."
                     )
                 } else {
                     Column(
@@ -490,7 +490,7 @@ fun SettingsScreen(
             title = { Text("Replace local data?") },
             text = {
                 Text(
-                    "Restore the latest backup (${selectedRestore?.name ?: "backup"})? This replaces all current customer, project, payment, measurement, and note data."
+                    "Restore the latest backup (${selectedRestore?.name ?: "backup"})? This replaces all current customer, loan, payment, and note data."
                 )
             },
             confirmButton = {

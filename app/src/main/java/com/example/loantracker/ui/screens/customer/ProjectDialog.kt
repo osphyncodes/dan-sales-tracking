@@ -1,9 +1,10 @@
 package com.example.loantracker.ui.screens.customer
 
 import android.widget.Toast
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
@@ -15,204 +16,145 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.loantracker.data.local.entities.ProjectEntity
 import com.example.loantracker.ui.components.DateInputField
-import com.example.loantracker.ui.components.SelectDropdown
 import com.example.loantracker.viewmodel.ProjectViewModel
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.LocalDateTime
-import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 
 @Composable
 fun CustomerAttemptDialog(
     project: ProjectEntity? = null,
-    customerId: Long = 0,
+    customerId: Long,
     onDismis: () -> Unit,
     onSave: (Boolean) -> Unit,
     viewModel: ProjectViewModel,
-    type: String,
     currency: String
 ) {
-    var dateCreated by remember { mutableStateOf(project?.dateCreated?.format(
-        DateTimeFormatter.ofPattern("yyyy-MM-dd")
-    ) ?: "") }
-    var name by remember { mutableStateOf(project?.name ?: "") }
-    var price by remember { mutableStateOf(project?.price?.toString() ?: "") }
-    var dueDate by remember { mutableStateOf(project?.dueDate?.format(
-        DateTimeFormatter.ofPattern("yyyy-MM-dd")
-    ) ?: "") }
-    var saved by remember { mutableStateOf(false) }
-
+    var dateCreated by remember(project?.id) {
+        mutableStateOf(project?.dateCreated?.format(DateTimeFormatter.ISO_LOCAL_DATE) ?: LocalDate.now().toString())
+    }
+    var name by remember(project?.id) { mutableStateOf(project?.name.orEmpty()) }
+    var amount by remember(project?.id) {
+        mutableStateOf(project?.price?.takeIf { it > 0.0 }?.toString().orEmpty())
+    }
+    var dueDate by remember(project?.id) {
+        mutableStateOf(project?.dueDate?.format(DateTimeFormatter.ISO_LOCAL_DATE).orEmpty())
+    }
+    var isSaving by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     AlertDialog(
-        onDismissRequest = onDismis,
-        title = {
-            Text(
-                text = if (project == null) {
-                    "Add Project"
-                } else {
-                    "Edit Project"
-                }
-            )
-        },
+        onDismissRequest = { if (!isSaving) onDismis() },
+        title = { Text(if (project == null) "Add loan" else "Edit loan") },
         text = {
-            Column {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 DateInputField(
-                    label = "Date of Creation",
+                    label = "Date given *",
                     selectedDate = dateCreated,
-                    onDateSelected = {
-                        dateCreated = it
-                    }
+                    onDateSelected = { dateCreated = it },
+                    modifier = Modifier.fillMaxWidth()
                 )
-                
-                Spacer(modifier = Modifier.height(10.dp))
-
                 OutlinedTextField(
                     value = name,
-                    onValueChange = {
-                        name = it
-                    },
-                    label = {
-                        Text(text = "Project Name")
-                    }
+                    onValueChange = { name = it },
+                    label = { Text("Clothing/item description *") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
                 )
-
-                Spacer(modifier = Modifier.height(10.dp))
-
                 OutlinedTextField(
-                    value = price.toString(),
-                    onValueChange = {
-                        price = it
+                    value = amount,
+                    onValueChange = { value ->
+                        amount = value.filter { it.isDigit() || it == '.' || it == ',' }
                     },
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Number
-                    ),
-                    label = {
-                        Text(text = "Price")
-                    },
-                    prefix = {
-                        Text(text = currency)
-                    }
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    label = { Text("Amount given (optional)") },
+                    prefix = { Text("$currency ") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
                 )
-
-                Spacer(modifier = Modifier.height(10.dp))
-
                 DateInputField(
-                    label = "Due Date",
+                    label = "Expected repayment (optional)",
                     selectedDate = dueDate,
-                    onDateSelected = {
-                        dueDate = it
-                    }
+                    onDateSelected = { dueDate = it },
+                    modifier = Modifier.fillMaxWidth()
                 )
+                Text("* Required", style = androidx.compose.material3.MaterialTheme.typography.labelSmall)
             }
         },
         confirmButton = {
             Button(
+                enabled = !isSaving,
                 onClick = {
-
-                    //validation
-                    if(
-                        dateCreated.trim().isEmpty() ||
-                        name.trim().isEmpty() ||
-                        price.trim().isEmpty() ||
-                        dueDate.trim().isEmpty()
-                    ){
-                        Toast.makeText(
-                            context, "All fields are required ${dateCreated}, ${type}", Toast.LENGTH_SHORT
-                        ).show()
-
+                    if (name.isBlank() || dateCreated.isBlank()) {
+                        Toast.makeText(context, "Loan name and date are required.", Toast.LENGTH_SHORT).show()
+                        return@Button
+                    }
+                    val parsedAmount = amount.replace(",", ".").toDoubleOrNull()
+                    if (parsedAmount == null && amount.isNotBlank() ||
+                        parsedAmount != null && (!parsedAmount.isFinite() || parsedAmount < 0.0)
+                    ) {
+                        Toast.makeText(context, "Enter a valid non-negative amount.", Toast.LENGTH_SHORT).show()
                         return@Button
                     }
 
                     try {
-                        val parsedPrice = price.toDoubleOrNull()
-                        if (parsedPrice == null || parsedPrice < 0) {
-                            Toast.makeText(context, "Enter a valid non-negative price", Toast.LENGTH_SHORT).show()
+                        val created = LocalDate.parse(dateCreated)
+                        val due = dueDate.trim().takeIf(String::isNotEmpty)?.let(LocalDate::parse)
+                        if (created.isAfter(LocalDate.now())) {
+                            Toast.makeText(context, "Date cannot be in the future.", Toast.LENGTH_SHORT).show()
                             return@Button
                         }
-                        val selectedLocalDate = LocalDate.parse(dateCreated.trim())
-                        val selectedDueDate = LocalDate.parse(dueDate.trim())
-
-                        if (selectedLocalDate.isAfter(LocalDate.now())) {
-                            Toast.makeText(context, "Date cannot be in the future", Toast.LENGTH_SHORT).show()
+                        if (due != null && due.isBefore(created)) {
+                            Toast.makeText(context, "Expected repayment cannot be before the loan date.", Toast.LENGTH_SHORT).show()
                             return@Button
                         }
-
-                        // validating due date less than Creation date
-                        if (selectedLocalDate.isAfter(selectedDueDate)){
-                            Toast.makeText(
-                                context,
-                                "Due date cannot be before the creation date",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                            return@Button
-                        }
-
-                        //vadidating price less than 0
-                        if (project == null) {
-                            viewModel.insertProject(
-                                dateCreated = LocalDateTime.of(selectedLocalDate, LocalTime.MIDNIGHT),
-                                name = name.trim(),
-                                customerId = customerId,
-                                price = parsedPrice,
-                                dueDate = LocalDateTime.of(selectedDueDate, LocalTime.MIDNIGHT)
-                            )
-                        } else {
-                            project.let {
-                                viewModel.updateProject(it.copy(
-                                    dateCreated = LocalDateTime.of(selectedLocalDate, LocalTime.MIDNIGHT),
-                                    name = name.trim(),
+                        isSaving = true
+                        scope.launch {
+                            try {
+                                viewModel.saveProject(
+                                    existingProject = project,
                                     customerId = customerId,
-                                    price = parsedPrice,
-                                    dueDate = LocalDateTime.of(selectedDueDate, LocalTime.MIDNIGHT)
-                                ))
+                                    name = name.trim(),
+                                    dateCreated = created.atStartOfDay(),
+                                    price = parsedAmount ?: 0.0,
+                                    dueDate = due?.atStartOfDay()
+                                )
+                                onSave(true)
+                            } catch (error: CancellationException) {
+                                throw error
+                            } catch (error: Exception) {
+                                Toast.makeText(
+                                    context,
+                                    error.message ?: "Unable to save loan.",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            } finally {
+                                isSaving = false
                             }
                         }
-
-                        saved = !saved
-                    } catch (e: Exception) {
-                        Toast.makeText(context, "Invalid date format", Toast.LENGTH_SHORT).show()
+                    } catch (error: Exception) {
+                        Toast.makeText(context, "Enter valid dates.", Toast.LENGTH_SHORT).show()
                     }
-
-                    onSave(
-                        saved
-                    )
                 }
             ) {
-                Text(text = "Save")
+                Text(if (isSaving) "Saving..." else "Save loan")
             }
         },
         dismissButton = {
-            OutlinedButton(
-                onClick = onDismis
-            ) {
-                Text(text = "Cancel")
+            OutlinedButton(enabled = !isSaving, onClick = onDismis) {
+                Text("Cancel")
             }
         }
     )
-}
-
-@Composable
-@Preview(showSystemUi = true, showBackground = true)
-fun PersonsdFormPreview(){
-//    TracingAttemptDialog(
-//        ta = TracingAttemptEntity(
-//            dateAttempted = LocalDateTime.parse("2024-03-01"),
-//            tracingId = 1,
-//            type = "Phone",
-//            outcome = "Found"
-//        ),
-//        onDismis = {},
-//        onSave = {a, b ->
-//
-//        }
-//    )
 }

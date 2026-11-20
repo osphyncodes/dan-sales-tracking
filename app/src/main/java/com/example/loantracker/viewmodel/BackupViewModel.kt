@@ -66,7 +66,7 @@ class BackupViewModel @Inject constructor(
         runOperation(
             label = "Uploading encrypted backup to Google Drive...",
             operation = { onProgress -> backups.exportToTree(folder, passphrase, onProgress) },
-            successMessage = "Encrypted backup saved to TailorCounterpart/backup.",
+            successMessage = "Encrypted backup saved to LoanTracker/backup.",
             failureMessage = "Backup failed."
         )
     }

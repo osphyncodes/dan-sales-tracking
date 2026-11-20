@@ -98,9 +98,9 @@ class EncryptedBackupManager @Inject constructor(
             treeUri,
             DocumentsContract.getTreeDocumentId(treeUri)
         )
-        val tailorFolder = findOrCreateDirectory(treeUri, root, "TailorCounterpart")
-        val backupFolder = findOrCreateDirectory(treeUri, tailorFolder, "backup")
-        val fileName = "tailor-counterpart-${System.currentTimeMillis()}.tcb"
+        val loanTrackerFolder = findOrCreateDirectory(treeUri, root, "LoanTracker")
+        val backupFolder = findOrCreateDirectory(treeUri, loanTrackerFolder, "backup")
+        val fileName = "loan-tracker-${System.currentTimeMillis()}.tcb"
         val destination = DocumentsContract.createDocument(
             context.contentResolver,
             backupFolder,
@@ -318,7 +318,7 @@ class EncryptedBackupManager @Inject constructor(
             require(
                 setOf("customers", "contacts", "projects", "measurements", "project_measurements", "payments", "notes")
                     .all { it in tables }
-            ) { "The backup does not contain a complete TailorCounterpart database." }
+            ) { "The backup does not contain a complete Loan Tracker database." }
         } finally {
             restoredDb.close()
         }

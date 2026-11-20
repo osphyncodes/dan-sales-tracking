@@ -2,7 +2,6 @@ package com.example.loantracker.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.loantracker.data.local.data_classes.ProjectMeasurement
 import com.example.loantracker.data.local.entities.NoteEntity
 import com.example.loantracker.data.local.entities.PaymentEntity
 import com.example.loantracker.data.local.entities.ProjectEntity
@@ -22,34 +21,40 @@ class ProjectViewModel @Inject constructor(
     private val noteRepository: NoteRepository,
 ): ViewModel() {
     //Project CRUD Operations ====================================================
-    fun insertProject(
+    suspend fun saveProject(
+        existingProject: ProjectEntity?,
         customerId: Long,
         name: String,
         dateCreated: LocalDateTime,
-        dueDate: LocalDateTime,
-        price: Double
-    ){
-        viewModelScope.launch {
-            projectRepository.insert(
-                ProjectEntity(
-                    customerId = customerId,
-                    name = name,
-                    dateCreated = dateCreated,
-                    dueDate = dueDate,
-                    price = price,
-                )
-            )
+        price: Double,
+        dueDate: LocalDateTime?
+    ) {
+        require(price >= 0.0 && price.isFinite()) { "Loan amount must be a valid non-negative number." }
+        if (existingProject != null) {
+            val payments = paymentRepository.getTotalPaymentsOnce(existingProject.id)
+            require(price >= payments) {
+                "The loan amount cannot be less than the ${payments} already collected."
+            }
         }
-    }
+        val project = existingProject?.copy(
+            customerId = customerId,
+            name = name,
+            dateCreated = dateCreated,
+            price = price,
+            dueDate = dueDate
+        ) ?: ProjectEntity(
+            customerId = customerId,
+            name = name,
+            dateCreated = dateCreated,
+            price = price,
+            dueDate = dueDate
+        )
 
-    fun updateProject(project: ProjectEntity){
-        viewModelScope.launch {
+        if (existingProject == null) {
+            projectRepository.insert(project)
+        } else {
             projectRepository.update(project)
         }
-    }
-
-    suspend fun updateProjectNow(project: ProjectEntity) {
-        projectRepository.update(project)
     }
 
     fun getProjectById(projectId: Long): Flow<ProjectEntity>{
@@ -79,10 +84,11 @@ class ProjectViewModel @Inject constructor(
     ): Long {
         require(amountPaid > 0.0 && amountPaid.isFinite()) { "Payment amount must be greater than zero." }
         val project = projectRepository.findOne(projectId)
-            ?: error("This project no longer exists. Reopen the project and try again.")
+            ?: error("This loan no longer exists. Reopen it and try again.")
         val alreadyPaid = paymentRepository.getTotalPaymentsOnce(projectId)
         val balance = (project.price - alreadyPaid).coerceAtLeast(0.0)
-        check(balance > 0.0) { "This project has no outstanding balance." }
+        check(balance > 0.0) { "This loan has no outstanding balance." }
+        check(!project.isBalanceForgiven) { "This loan has been marked as settled." }
         require(amountPaid <= balance) {
             "Payment cannot exceed the remaining balance of $balance."
         }
@@ -103,10 +109,11 @@ class ProjectViewModel @Inject constructor(
             "Payment amount must be greater than zero."
         }
         val project = projectRepository.findOne(payment.projectId)
-            ?: error("This project no longer exists. Reopen the project and try again.")
+            ?: error("This loan no longer exists. Reopen it and try again.")
         val alreadyPaid = paymentRepository.getTotalPaymentsOnce(payment.projectId)
         val availableBalance = (project.price - (alreadyPaid - payment.amountPaid)).coerceAtLeast(0.0)
-        check(availableBalance > 0.0) { "This project has no outstanding balance." }
+        check(availableBalance > 0.0) { "This loan has no outstanding balance." }
+        check(!project.isBalanceForgiven) { "This loan has been marked as settled." }
         require(payment.amountPaid <= availableBalance) {
             "Payment cannot exceed the remaining balance of $availableBalance."
         }
@@ -120,6 +127,8 @@ class ProjectViewModel @Inject constructor(
     fun getPaymentsByProjectId(projectId: Long): Flow<List<PaymentEntity>>{
         return paymentRepository.getPaymentsByProjectId(projectId)
     }
+
+    fun getAllPayments(): Flow<List<PaymentEntity>> = paymentRepository.getAllPayments()
 
     fun getTotalPayment(projectId: Long): Flow<Double>{
         return paymentRepository.getTotalPayments(projectId)

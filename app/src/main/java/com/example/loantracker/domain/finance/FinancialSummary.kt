@@ -19,7 +19,9 @@ fun calculateFinancialSummary(
 ) : FinancialSummary {
     val selectedPayments = payments.filter {
         paymentMethod == null || paymentMethod == "All" ||
-                it.method.equals(paymentMethod, ignoreCase = true)
+            it.method.equals(paymentMethod, ignoreCase = true) ||
+            (paymentMethod.equals("Other", ignoreCase = true) &&
+                it.method.equals("Item Exchange", ignoreCase = true))
     }
     val inRangePayments = selectedPayments.filter {
         val date = it.datePaid.toLocalDate()

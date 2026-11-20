@@ -7,6 +7,8 @@ import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 
 class PaymentRepository @Inject constructor(private val dao: PaymentDao){
+    fun getAllPayments() = dao.getPayments()
+
     val payments = dao.getPayments()
 
     suspend fun insert(payment: PaymentEntity): Long {

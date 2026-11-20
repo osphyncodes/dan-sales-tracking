@@ -42,8 +42,6 @@ class CustomerViewModel @Inject constructor(
     private val _endDate = MutableStateFlow<LocalDateTime?>(null)
     val endDate = _endDate
 
-    private val _customerIdsWithBalance = repository.customerIdsWithBalance
-
     private val _insertedCustomerId = MutableStateFlow<Long?>(null)
     val insertedCustomerId = _insertedCustomerId.asStateFlow()
 
@@ -53,11 +51,6 @@ class CustomerViewModel @Inject constructor(
             else customers.filter {
                 it.customer.name.contains(query, ignoreCase = true)
             }
-        }
-        .combine(_customerIdsWithBalance) { customers, customerIdsWithBalance ->
-            if (_selectedFilter.value == "Balances") {
-                customers.filter { it.customer.id in customerIdsWithBalance }
-            } else customers
         }
         .combine(_startDate) { customers, start ->
             if (start == null) customers

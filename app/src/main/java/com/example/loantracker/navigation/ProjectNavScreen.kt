@@ -13,12 +13,6 @@ package com.example.loantracker.navigation
                 return this.route.replace(oldValue = "{projectId}", newValue = projectId.toString())
             }
         }
-        object Measurement: ProjectNavScreen(route = "project/{projectId}/measurements"){
-            fun goToMeasurements(projectId: Long = 0): String {
-                return this.route.replace(oldValue = "{projectId}", newValue = projectId.toString())
-            }
-        }
-
         object Payments: ProjectNavScreen(route = "project/{projectId}/payments"){
             fun goToPayments(projectId: Long = 0): String {
                 return this.route.replace(oldValue = "{projectId}", newValue = projectId.toString())

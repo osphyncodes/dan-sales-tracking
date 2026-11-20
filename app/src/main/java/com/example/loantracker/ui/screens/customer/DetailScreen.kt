@@ -68,7 +68,6 @@ import com.example.loantracker.navigation.ProjectNavScreen
 import com.example.loantracker.viewmodel.CustomerViewModel
 import com.example.loantracker.viewmodel.ProjectViewModel
 import com.example.loantracker.viewmodel.ValViewModel
-import com.google.android.gms.common.util.CollectionUtils.listOf
 import java.time.format.DateTimeFormatter
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -90,6 +89,8 @@ fun DetailScreen(
     val customer by customerViewModel
         .getCustomerById(customerId)
         .collectAsState(initial = null)
+    val villages by customerViewModel.villages.collectAsState()
+    val clusters by customerViewModel.clusters.collectAsState()
 
     var showAttemptDialog by remember {
         mutableStateOf(false)
@@ -97,10 +98,6 @@ fun DetailScreen(
 
     var selectedProject by remember {
         mutableStateOf<ProjectEntity?>(null)
-    }
-
-    var attemptType by remember {
-        mutableStateOf("")
     }
 
     var projectToDelete by remember {
@@ -133,7 +130,9 @@ fun DetailScreen(
 
             customer?.let {
                 CustomerDetailsSection(
-                    customer = it
+                    customer = it,
+                    village = villages.firstOrNull { village -> village.id.toLong() == it.villageId }?.name,
+                    cluster = clusters.firstOrNull { cluster -> cluster.id.toLong() == it.clusterId }?.name
                 )
             }
 
@@ -155,13 +154,13 @@ fun DetailScreen(
                 ) {
 
                     Text(
-                        text = "Projects",
+                        text = "Loans",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
 
                     Text(
-                        text = "${projects.size} project${if (projects.size == 1) "" else "s"}",
+                        text = "${projects.size} loan${if (projects.size == 1) "" else "s"}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -215,7 +214,6 @@ fun DetailScreen(
 
                             onEdit = {
                                 selectedProject = project
-                                attemptType = "Edit"
                                 showAttemptDialog = true
                             },
 
@@ -253,7 +251,7 @@ fun DetailScreen(
 
                 Icon(
                     imageVector = Icons.Default.Add,
-                    contentDescription = "Add Project"
+                    contentDescription = "Add loan"
                 )
             }
         }
@@ -280,7 +278,6 @@ fun DetailScreen(
             },
 
             viewModel = projectViewModel,
-            type = attemptType,
             currency = currency
         )
     }
@@ -306,13 +303,13 @@ fun DetailScreen(
             },
 
             title = {
-                Text("Delete project?")
+                Text("Delete loan?")
             },
 
             text = {
                 Text(
                     "Are you sure you want to delete " +
-                            "\"${project.name}\"? This action cannot be undone."
+                            "\"${project.name}\" and its repayments? This action cannot be undone."
                 )
             },
 
@@ -357,6 +354,8 @@ fun DetailScreen(
 @Composable
 fun CustomerDetailsSection(
     customer: CustomerEntity,
+    village: String?,
+    cluster: String?
 ) {
 
     ElevatedCard(
@@ -441,12 +440,14 @@ fun CustomerDetailsSection(
 
             DetailItem(
                 label = "Village",
-                value = "Sili"
+                value = village ?: "Not set"
             )
+
+            DetailItem(label = "Cluster", value = cluster ?: "Not set")
 
             DetailItem(
                 label = "Age",
-                value = customer.age.toString()
+                value = customer.age?.takeIf(String::isNotBlank) ?: "Not set"
             )
 
             DetailItem(
@@ -463,15 +464,15 @@ fun CustomerDetailsSection(
             // CONTACTS
             // -----------------------------------------------------------------
 
-            customer.phoneNumber.let { phone ->
-                if (phone !== "") {
+            customer.phoneNumber?.let { phone ->
+                if (phone.isNotBlank()) {
 
                     Spacer(
                         modifier = Modifier.height(14.dp)
                     )
 
                     ContactSection(
-                        contacts = listOf<String>(phone)
+                        contacts = listOf(phone)
                     )
                 }
             }
@@ -815,7 +816,7 @@ fun ProjectCard(
                         Icons.Default.ChevronRight,
 
                     contentDescription =
-                        "Open project",
+                        "Open loan",
 
                     tint =
                         MaterialTheme.colorScheme.onSurfaceVariant
@@ -973,7 +974,7 @@ private fun EmptyProjectsState() {
 
             Text(
                 text =
-                    "No projects yet",
+                    "No loans yet",
 
                 style =
                     MaterialTheme.typography.titleMedium,
@@ -989,7 +990,7 @@ private fun EmptyProjectsState() {
 
             Text(
                 text =
-                    "Create a project to start tracking this customer.",
+                    "Add a loan to start tracking this customer's balance.",
 
                 style =
                     MaterialTheme.typography.bodyMedium,

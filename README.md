@@ -1,6 +1,6 @@
 # Loan Tracker
 
-Loan Tracker is a native Android application for managing customer projects, measurements, payments, and notes. It is designed to work offline with a local Room database.
+Loan Tracker is a native Android application for recording clothing loans to customers, collecting repayments, and tracking customer balances. It is designed to work offline with a local Room database.
 
 > **Project status:** Core offline workflows and optional scheduled Google Drive backups are implemented. Google Drive backups require Google Cloud OAuth configuration and a connected account; see [Current implementation and gaps](#current-implementation-and-gaps).
 
@@ -51,31 +51,27 @@ The Room database is `app_database` (schema version 3).
 
 | Table | Purpose |
 | --- | --- |
-| `customers` | Customer name, age, gender, and creation date |
-| `contacts` | Customer phone, email, address, or other contact values |
-| `projects` | Customer garment/job, due date, status, and quoted price |
-| `measurements` | Reusable measurement type names |
-| `project_measurements` | Measurement values captured for a project |
-| `payments` | Project payments, dates, and payment methods |
-| `notes` | Notes attached to tailoring projects |
+| `customers` | Customer name, age, village/cluster IDs, phone, and date added |
+| `projects` | Existing loan records: customer, description, date given, optional expected repayment date, and amount given |
+| `payments` | Repayments against a loan, including date and payment method |
+| `notes` | Notes attached to a loan |
 
-Deleting a customer cascades to its projects and contacts. Deleting a project cascades to its payments, notes, and project measurements. The version 2-to-3 migration corrects the note-to-project foreign key and keeps notes linked to existing projects. Include and test a Room migration for every future schema change.
+Projects remain the existing database entity and are presented as loans in the app. A blank optional loan amount is stored as zero until it is known. Deleting a customer cascades to their loans; deleting a loan cascades to its payments and notes. Include and test a Room migration for every future schema change.
 
 ## Current implementation and gaps
 
 | Capability | Current state |
 | --- | --- |
 | Customer CRUD | Local create, edit, and delete, with contact editing and device contact import. |
-| Customer filters | Search, finished/unfinished project status, outstanding balance, and customer creation date range. |
-| Project CRUD | Create, edit, delete, detail, and `In Progress` / `Cancelled` / `Completed` status selection per customer. |
-| Project detail actions | More-menu actions for edit, delete, status update, quick payment, and quick measurement entry. |
-| Project payments | Room-backed add, edit, delete, method tracking, and totals; payment amounts are limited to the remaining project balance. |
-| Project measurements | Room-backed add, edit, and removal; measurement types can be created during entry. |
-| Project notes | Room-backed add, edit, and delete. |
-| Dashboard | Date-range and payment-method filters; period income, cumulative income, outstanding balances, customer and cumulative project counts, projects in progress, and recent payments. |
+| Customer list | Search and filter all customers, customers with outstanding balances, or customers whose loans are settled. Cards show collected and outstanding totals; long-press for customer details. |
+| Fast loan entry | Add or edit a loan from the customer list without navigating away. Loan description and date are required; amount and expected repayment date are optional. |
+| Customer loan summary | Tap a customer to see only unpaid loans, then record a repayment directly from that summary. Deeper customer and loan histories remain available. |
+| Repayments | Record, edit, and delete repayments; amounts are validated against the remaining loan balance. The full-balance action records the exact amount needed to settle a loan. |
+| Loan notes | Add, edit, and delete notes attached to a loan. |
+| Dashboard | Date-range and payment-method filters; period income, total loaned and collected, outstanding cash with a progress bar, customers owing, and recent repayments. |
 | Currency | Persisted currency symbol/code applied to dashboard and project financial screens. |
 | Local backup/restore | Portable passphrase-encrypted database files with byte-based progress, selected-file details, and restore confirmation; the app can be restarted after a successful restore. |
-| Google Drive backup | Google Sign-In authorizes direct Drive API access. Encrypted timestamped backups are uploaded to `Drive/TailorCounterpart/backup`; restore offers only the newest backup. The connected Google account's email address is used automatically as the encryption passphrase. |
+| Google Drive backup | Google Sign-In authorizes direct Drive API access. Encrypted timestamped backups are uploaded to `Drive/LoanTracker/backup`; existing backups in the former `TailorCounterpart` folder remain restorable. The connected Google account's email address is used automatically as the encryption passphrase. |
 | Automatic cloud backup | Optional daily, weekly, or 30-day periodic uploads through WorkManager, requiring a connected Google account and network access. Android may defer background work. |
 | App lock | PIN creation, verification, and change, recovery-question setup, and optional device biometric unlock. |
 | Tests | Unit tests cover financial summary calculations and project navigation. Database migration, backup, biometric, and UI flows still need broader coverage. |
@@ -100,7 +96,7 @@ Backups use a passphrase-derived AES-GCM key. For Google Drive backups, the conn
 1. In Google Cloud Console, create or select a project and enable the Google Drive API.
 2. Configure the OAuth consent screen and add tester accounts if the app remains in testing.
 3. Create an Android OAuth client for application ID `com.example.loantracker`, using the SHA-1 fingerprint of the debug signing key for local builds and the release signing key for published builds.
-4. Install/update a build signed with the matching key, then use **Settings → Backups → Connect Google Drive**. Backups are uploaded directly to the app's `TailorCounterpart/backup` Drive folder.
+4. Install/update a build signed with the matching key, then use **Settings → Backups → Connect Google Drive**. New backups are uploaded directly to the app's `LoanTracker/backup` Drive folder.
 
 No Web client secret is embedded in the Android app. Manual backups are user-initiated; enabled periodic backups run through WorkManager when network access and Android background scheduling permit.
 

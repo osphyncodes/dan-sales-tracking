@@ -28,7 +28,6 @@ import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Card
@@ -60,7 +59,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.loantracker.functions.formatMoney
 import com.example.loantracker.data.local.entities.NoteEntity
-import com.example.loantracker.data.local.entities.normalizedProjectStatus
 import com.example.loantracker.ui.screens.customer.CustomerAttemptDialog
 import com.example.loantracker.viewmodel.CustomerViewModel
 import com.example.loantracker.viewmodel.ProjectViewModel
@@ -79,7 +77,6 @@ fun ProjectOverviewScreen(
     customerViewModel: CustomerViewModel,
     currency: String,
     onPaymentsClick: () -> Unit = {},
-    onMeasurementsClick: () -> Unit = {},
     onProjectDeleted: (Long) -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -104,11 +101,8 @@ fun ProjectOverviewScreen(
     var showNoteEditor by remember(projectId) { mutableStateOf(false) }
     var showEditProject by remember(projectId) { mutableStateOf(false) }
     var showDeleteProject by remember(projectId) { mutableStateOf(false) }
-    var showStatusDialog by remember(projectId) { mutableStateOf(false) }
     var showAddPayment by remember(projectId) { mutableStateOf(false) }
-    var showAddMeasurement by remember(projectId) { mutableStateOf(false) }
     var isSavingPayment by remember(projectId) { mutableStateOf(false) }
-    var selectedStatus by remember(projectId) { mutableStateOf("In Progress") }
     val scope = rememberCoroutineScope()
 
     val projectGreen = Color(0xFF16805C)
@@ -120,7 +114,8 @@ fun ProjectOverviewScreen(
         val customerName = customer?.name ?: "Customer"
         val notes by projectViewModel.getNotesByProjectId(projectId)
             .collectAsState(initial = emptyList())
-        val balance = (currentProject.price - amountPaid).coerceAtLeast(0.0)
+        val balance = if (currentProject.isBalanceForgiven) 0.0
+        else (currentProject.price - amountPaid).coerceAtLeast(0.0)
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -147,7 +142,7 @@ fun ProjectOverviewScreen(
                     onEdit = { showEditProject = true },
                     onDelete = { showDeleteProject = true },
                     onAddPayment = { showAddPayment = true },
-                    onAddMeasurement = { showAddMeasurement = true }
+                    isOutstanding = balance > 0.0
                 )
             }
 
@@ -157,7 +152,7 @@ fun ProjectOverviewScreen(
 
             item {
                 SectionTitle(
-                    title = "Financial summary"
+                    title = "Loan summary"
                 )
             }
 
@@ -178,7 +173,7 @@ fun ProjectOverviewScreen(
 
             item {
                 SectionTitle(
-                    title = "Project information"
+                    title = "Loan details"
                 )
             }
 
@@ -193,7 +188,8 @@ fun ProjectOverviewScreen(
                         DateTimeFormatter.ofPattern(
                         "MMMM dd, yyyy"
                     )) ?: "Not set",
-                    projectGreen = projectGreen
+                    projectGreen = projectGreen,
+                    isOutstanding = balance > 0.0
                 )
             }
 
@@ -208,10 +204,7 @@ fun ProjectOverviewScreen(
             }
 
             item {
-                QuickActionsCard(
-                    onMeasurementsClick = onMeasurementsClick,
-                    onPaymentsClick = onPaymentsClick
-                )
+                QuickActionsCard(onPaymentsClick = onPaymentsClick)
             }
 
             item {
@@ -219,19 +212,19 @@ fun ProjectOverviewScreen(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    SectionTitle(title = "Project notes")
+                    SectionTitle(title = "Loan notes")
                     Spacer(Modifier.weight(1f))
                     IconButton(onClick = {
                         noteBeingEdited = null
                         noteText = ""
                         showNoteEditor = true
                     }) {
-                        Icon(Icons.Default.Add, contentDescription = "Add project note")
+                        Icon(Icons.Default.Add, contentDescription = "Add loan note")
                     }
                 }
             }
             if (notes.isEmpty()) {
-                item { Text("No notes for this project yet.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                item { Text("No notes for this loan yet.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
             } else {
                 items(notes.size, key = { notes[it].id }) { index ->
                     val note = notes[index]
@@ -272,7 +265,7 @@ fun ProjectOverviewScreen(
         if (showNoteEditor) {
             AlertDialog(
                 onDismissRequest = { showNoteEditor = false },
-                title = { Text(if (noteBeingEdited == null) "Add project note" else "Edit project note") },
+                title = { Text(if (noteBeingEdited == null) "Add loan note" else "Edit loan note") },
                 text = {
                     OutlinedTextField(
                         value = noteText,
@@ -306,7 +299,6 @@ fun ProjectOverviewScreen(
                 onDismis = { showEditProject = false },
                 onSave = { saved -> if (saved) showEditProject = false },
                 viewModel = projectViewModel,
-                type = "project",
                 currency = currency
             )
         }
@@ -314,9 +306,9 @@ fun ProjectOverviewScreen(
         if (showDeleteProject) {
             AlertDialog(
                 onDismissRequest = { showDeleteProject = false },
-                title = { Text("Delete project?") },
+                title = { Text("Delete loan?") },
                 text = {
-                    Text("Delete \"${currentProject.name}\" and all its payments, measurements, and notes? This cannot be undone.")
+                    Text("Delete \"${currentProject.name}\" and all its payments and notes? This cannot be undone.")
                 },
                 confirmButton = {
                     TextButton(onClick = {
@@ -330,7 +322,7 @@ fun ProjectOverviewScreen(
                             } catch (error: Exception) {
                                 android.widget.Toast.makeText(
                                     context,
-                                    error.message ?: "Unable to delete project.",
+                                    error.message ?: "Unable to delete loan.",
                                     android.widget.Toast.LENGTH_LONG
                                 ).show()
                             }
@@ -386,7 +378,7 @@ fun ProjectOverviewScreen(
                 AlertDialog(
                     onDismissRequest = { noteBeingDeleted = null },
                     title = { Text("Delete note?") },
-                    text = { Text("This project note will be removed.") },
+                    text = { Text("This loan note will be removed.") },
                     confirmButton = {
                         TextButton(onClick = {
                             projectViewModel.deleteNote(note)
@@ -416,7 +408,7 @@ private fun ProjectHeaderCard(
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     onAddPayment: () -> Unit,
-    onAddMeasurement: () -> Unit
+    isOutstanding: Boolean,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
 
@@ -492,7 +484,7 @@ private fun ProjectHeaderCard(
 
                 Column(horizontalAlignment = Alignment.End) {
                     IconButton(onClick = { menuExpanded = true }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "Project actions")
+                        Icon(Icons.Default.MoreVert, contentDescription = "Loan actions")
                     }
                     DropdownMenu(
                         expanded = menuExpanded,
@@ -501,8 +493,7 @@ private fun ProjectHeaderCard(
                         listOf(
                             "Edit" to onEdit,
                             "Delete" to onDelete,
-                            "Add Payment" to onAddPayment,
-                            "Add measurement" to onAddMeasurement
+                            "Add Payment" to onAddPayment
                         ).forEach { (label, action) ->
                             DropdownMenuItem(
                                 text = { Text(label) },
@@ -515,7 +506,8 @@ private fun ProjectHeaderCard(
                     }
                     StatusBadge(
                         color = projectGreen,
-                        backgroundColor = lightGreen
+                        backgroundColor = lightGreen,
+                        label = if (isOutstanding) "Outstanding" else "Paid"
                     )
                 }
             }
@@ -552,7 +544,7 @@ private fun FinancialSummaryCard(
         ) {
 
             Text(
-                text = "Total project price",
+                text = "Amount given",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -711,7 +703,8 @@ private fun ProjectInformationCard(
     customerName: String,
     dateCreated: String,
     dueDate: String?,
-    projectGreen: Color
+    projectGreen: Color,
+    isOutstanding: Boolean
 ) {
 
     Card(
@@ -740,7 +733,7 @@ private fun ProjectInformationCard(
 
             InformationRow(
                 icon = Icons.Default.CalendarToday,
-                title = "Date created",
+                title = "Date given",
                 value = dateCreated,
                 iconColor = projectGreen
             )
@@ -749,7 +742,7 @@ private fun ProjectInformationCard(
 
             InformationRow(
                 icon = Icons.Default.Event,
-                title = "Due date",
+                title = "Expected repayment",
                 value = dueDate ?: "Not set",
                 iconColor = MaterialTheme.colorScheme.error
             )
@@ -759,7 +752,7 @@ private fun ProjectInformationCard(
             InformationRow(
                 icon = Icons.Default.CheckCircle,
                 title = "Status",
-                value = "Active",
+                value = if (isOutstanding) "Outstanding" else "Paid",
                 iconColor = projectGreen
             )
         }
@@ -832,7 +825,6 @@ private fun InformationRow(
 
 @Composable
 private fun QuickActionsCard(
-    onMeasurementsClick: () -> Unit,
     onPaymentsClick: () -> Unit
 ) {
 
@@ -847,20 +839,9 @@ private fun QuickActionsCard(
         Column {
 
             QuickActionRow(
-                icon = Icons.Default.Straighten,
-                title = "Measurements",
-                subtitle = "View and manage customer measurements",
-                onClick = onMeasurementsClick
-            )
-
-            HorizontalDivider(
-                modifier = Modifier.padding(horizontal = 20.dp)
-            )
-
-            QuickActionRow(
                 icon = Icons.Default.Payments,
-                title = "Payments",
-                subtitle = "View payment history and balance",
+                title = "Payment history",
+                subtitle = "View collections and remaining balance",
                 onClick = onPaymentsClick
             )
         }
@@ -943,7 +924,8 @@ private fun QuickActionRow(
 @Composable
 private fun StatusBadge(
     color: Color,
-    backgroundColor: Color
+    backgroundColor: Color,
+    label: String
 ) {
 
     Surface(
@@ -969,7 +951,7 @@ private fun StatusBadge(
             Spacer(modifier = Modifier.width(6.dp))
 
             Text(
-                text = "Active",
+                text = label,
                 style = MaterialTheme.typography.labelMedium,
                 color = color,
                 fontWeight = FontWeight.SemiBold

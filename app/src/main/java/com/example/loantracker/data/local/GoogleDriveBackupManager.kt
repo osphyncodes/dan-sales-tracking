@@ -37,7 +37,7 @@ class GoogleDriveBackupManager @Inject constructor(
         val folderId = findOrCreateBackupFolder(drive)
         val localBackup = java.io.File(
             context.cacheDir,
-            "tailor-counterpart-drive-backup-${System.currentTimeMillis()}.tcb"
+            "loan-tracker-drive-backup-${System.currentTimeMillis()}.tcb"
         )
         try {
             val email = account.email?.takeIf { it.isNotBlank() }
@@ -46,7 +46,7 @@ class GoogleDriveBackupManager @Inject constructor(
                 onProgress(progress?.times(0.25f))
             }
             val metadata = DriveFile().apply {
-                name = "tailor-counterpart-${System.currentTimeMillis()}.tcb"
+                name = "loan-tracker-${System.currentTimeMillis()}.tcb"
                 mimeType = "application/octet-stream"
                 parents = listOf(folderId)
             }
@@ -73,23 +73,25 @@ class GoogleDriveBackupManager @Inject constructor(
     suspend fun listBackups(account: GoogleSignInAccount): List<DriveBackupFile> =
         withContext(Dispatchers.IO) {
             val drive = createDriveClient(account)
-            val folderId = findBackupFolder(drive) ?: return@withContext emptyList()
-            drive.files().list()
-                .setQ("'$folderId' in parents and name contains '.tcb' and trashed = false")
-                .setSpaces("drive")
-                .setPageSize(1)
-                .setOrderBy("modifiedTime desc")
-                .setFields("files(id,name,modifiedTime)")
-                .execute()
-                .files
-                .orEmpty()
-                .map { file ->
-                    DriveBackupFile(
-                        id = file.id,
-                        name = file.name,
-                        modifiedTime = file.modifiedTime?.value?.let(::Date)
-                    )
-                }
+            val folders = findBackupFolders(drive)
+            folders.flatMap { folderId ->
+                drive.files().list()
+                    .setQ("'$folderId' in parents and name contains '.tcb' and trashed = false")
+                    .setSpaces("drive")
+                    .setPageSize(1)
+                    .setOrderBy("modifiedTime desc")
+                    .setFields("files(id,name,modifiedTime)")
+                    .execute()
+                    .files
+                    .orEmpty()
+                    .map { file ->
+                        DriveBackupFile(
+                            id = file.id,
+                            name = file.name,
+                            modifiedTime = file.modifiedTime?.value?.let(::Date)
+                        )
+                    }
+            }.sortedByDescending { it.modifiedTime }.take(1)
         }
 
     suspend fun restoreBackup(
@@ -101,7 +103,7 @@ class GoogleDriveBackupManager @Inject constructor(
         val metadata = drive.files().get(backup.id).setFields("id,name,size").execute()
         val downloaded = java.io.File(
             context.cacheDir,
-            "tailor-counterpart-drive-restore-${System.currentTimeMillis()}.tcb"
+            "loan-tracker-drive-restore-${System.currentTimeMillis()}.tcb"
         )
         try {
             val totalBytes = metadata.size?.takeIf { it > 0L }
@@ -161,13 +163,15 @@ class GoogleDriveBackupManager @Inject constructor(
     }
 
     private fun findOrCreateBackupFolder(drive: Drive): String {
-        val rootFolder = findOrCreateFolder(drive, "root", "TailorCounterpart")
+        val rootFolder = findOrCreateFolder(drive, "root", "LoanTracker")
         return findOrCreateFolder(drive, rootFolder, "backup")
     }
 
-    private fun findBackupFolder(drive: Drive): String? {
-        val rootFolder = findFolder(drive, "root", "TailorCounterpart") ?: return null
-        return findFolder(drive, rootFolder, "backup")
+    private fun findBackupFolders(drive: Drive): List<String> {
+        return listOf("LoanTracker", "TailorCounterpart")
+            .mapNotNull { name -> findFolder(drive, "root", name) }
+            .mapNotNull { folderId -> findFolder(drive, folderId, "backup") }
+            .distinct()
     }
 
     private fun findOrCreateFolder(drive: Drive, parentId: String, name: String): String =

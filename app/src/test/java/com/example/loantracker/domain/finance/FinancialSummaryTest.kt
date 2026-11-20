@@ -41,7 +41,6 @@ class FinancialSummaryTest {
         dateCreated = LocalDateTime.of(2026, 11, 1, 0, 0),
         name = "Project $id",
         dueDate = LocalDateTime.of(2026, 12, 1, 0, 0),
-        status = "In Progress",
         price = price,
         isBalanceForgiven = forgiven
     )

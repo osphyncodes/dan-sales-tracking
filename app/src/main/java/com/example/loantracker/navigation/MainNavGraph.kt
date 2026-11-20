@@ -40,24 +40,22 @@ fun MainNavGraph(
     onCurrencyChange: (String) -> Unit,
     authViewModel: AuthViewModel = hiltViewModel()
 ){
-
+    val projectViewModel = androidx.compose.runtime.remember(database) {
+        val projectRepository = ProjectRepository(dao = database.projectDao())
+        val paymentRepository = PaymentRepository(dao = database.paymentDao())
+        val noteRepository = NoteRepository(dao = database.noteDao())
+        ProjectViewModel(
+            projectRepository = projectRepository,
+            noteRepository = noteRepository,
+            paymentRepository = paymentRepository,
+        )
+    }
 
     NavHost(
         startDestination = "main",
         navController = navController
     )
     {
-        val projectRepository = ProjectRepository(dao = database.projectDao())
-        val paymentRepository = PaymentRepository(dao = database.paymentDao())
-        val noteRepository = NoteRepository(dao = database.noteDao())
-
-
-        val projectViewModel = ProjectViewModel(
-            projectRepository = projectRepository,
-            noteRepository = noteRepository,
-            paymentRepository = paymentRepository,
-        )
-
         navigation(
             startDestination = MainNavScreen.Home.route,
             route = "main"
@@ -77,9 +75,11 @@ fun MainNavGraph(
             {
                 HomeScreen(
                     customerViewModel = customerViewModel,
+                    projectViewModel = projectViewModel,
                     navController = navController,
                     paddingValues = paddingValues,
-                    v = valViewModel
+                    v = valViewModel,
+                    currency = currency
                 )
             }
 
@@ -151,9 +151,6 @@ fun MainNavGraph(
                     onPaymentsClick = {
                         navController.navigate(ProjectNavScreen.Payments.goToPayments(projectId.toLong()))
                     },
-                    onMeasurementsClick = {
-                        navController.navigate(ProjectNavScreen.Measurement.goToMeasurements(projectId.toLong()))
-                    },
                     onProjectDeleted = { customerId ->
                         navController.popBackStack(
                             route = com.example.loantracker.navigation.MainNavScreen.CustomerDetail.goToCustomerDetail(customerId),
@@ -167,7 +164,8 @@ fun MainNavGraph(
                     paddingValues = paddingValues,
                     projectViewModel = projectViewModel,
                     valViewModel = valViewModel,
-                    currency = currency
+                    currency = currency,
+                    onBack = { navController.popBackStack() }
                 )
             }
         }
