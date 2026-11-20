@@ -1,6 +1,6 @@
-# Tailor's Counterpart
+# Loan Tracker
 
-Tailor's Counterpart is a native Android application for managing tailoring customers, garment projects, measurements, payments, and notes. It is designed to work offline with a local Room database.
+Loan Tracker is a native Android application for managing customer projects, measurements, payments, and notes. It is designed to work offline with a local Room database.
 
 > **Project status:** Core offline workflows and optional scheduled Google Drive backups are implemented. Google Drive backups require Google Cloud OAuth configuration and a connected account; see [Current implementation and gaps](#current-implementation-and-gaps).
 
@@ -19,12 +19,12 @@ Tailor's Counterpart is a native Android application for managing tailoring cust
 | Compile / target SDK | 34 |
 | Java / Kotlin target | Java 17 |
 
-The application ID and namespace are currently `com.example.tailorscounterpart`.
+The application ID and namespace are currently `com.example.loantracker`.
 
 ## Project layout
 
 ```text
-app/src/main/java/com/example/tailorscounterpart/
+app/src/main/java/com/example/loantracker/
 ├── data/local/
 │   ├── daos/           Room queries and mutations
 │   ├── database/      Room database, migrations, and Hilt providers
@@ -42,7 +42,7 @@ app/src/main/java/com/example/tailorscounterpart/
 │   └── theme/         Compose theme
 ├── viewmodel/         Screen and business state
 ├── MainActivity.kt    Compose host, app lock, and navigation chrome
-└── TailorsCounterpartApp.kt
+└── LoanTrackerApp.kt
 ```
 
 ## Data model
@@ -99,7 +99,7 @@ Backups use a passphrase-derived AES-GCM key. For Google Drive backups, the conn
 
 1. In Google Cloud Console, create or select a project and enable the Google Drive API.
 2. Configure the OAuth consent screen and add tester accounts if the app remains in testing.
-3. Create an Android OAuth client for application ID `com.example.tailorscounterpart`, using the SHA-1 fingerprint of the debug signing key for local builds and the release signing key for published builds.
+3. Create an Android OAuth client for application ID `com.example.loantracker`, using the SHA-1 fingerprint of the debug signing key for local builds and the release signing key for published builds.
 4. Install/update a build signed with the matching key, then use **Settings → Backups → Connect Google Drive**. Backups are uploaded directly to the app's `TailorCounterpart/backup` Drive folder.
 
 No Web client secret is embedded in the Android app. Manual backups are user-initiated; enabled periodic backups run through WorkManager when network access and Android background scheduling permit.
